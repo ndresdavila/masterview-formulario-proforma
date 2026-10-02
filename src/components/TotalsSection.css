@@ -1,0 +1,12 @@
+.totals-section-container {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.5fr;
+    /* Col 1 slightly bigger, Col 2 smaller, Col 3 bigger */
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .totals-section-container {
+        grid-template-columns: 1fr;
+    }
+}

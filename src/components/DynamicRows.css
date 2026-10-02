@@ -1,0 +1,32 @@
+.dynamic-rows-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 3fr 1fr 1fr 1fr;
+    gap: 6px;
+}
+
+@media (max-width: 768px) {
+    .dynamic-rows-grid {
+        grid-template-columns: 1fr;
+        /* Stack on mobile */
+        gap: 12px;
+    }
+
+    .dynamic-rows-header {
+        display: none !important;
+        /* Hide header on mobile */
+    }
+}
+
+.dynamic-rows-header {
+    background-color: var(--color-background);
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.row-card {
+    transition: background-color 0.2s;
+}
+
+.row-card:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}

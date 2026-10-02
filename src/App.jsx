@@ -1,23 +1,58 @@
-import PartyDetails from './components/PartyDetails';
-import PortDetails from './components/PortDetails';
-import DynamicRows from './components/DynamicRows';
-import FooterFields from './components/FooterFields';
-import { useState, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './custom-toast.css';
 import './App.css';
 
+import Layout from './components/Layout';
+import PartyDetails from './components/PartyDetails';
+import PortDetails from './components/PortDetails';
+import DynamicRows from './components/DynamicRows';
+import FooterFields from './components/FooterFields';
+import TotalsSection from './components/TotalsSection';
+import { formatAmount, parseAmount } from './utils/amount';
+
 function App() {
+  // === STATE MANAGEMENT ===
+  const [formData, setFormData] = useState({
+    shipper: '',
+    consignee: '',
+    notify_party: '',
+    second_notify: '',
+    booking_number: '',
+    bill_of_lading_number: '',
+    vessel: '',
+    voy_number: '',
+    port_of_loading: '',
+    port_of_discharge: '',
+    place_of_delivery: '',
+    type_of_move: '',
+    freight_payable: '',
+    issue_date: '',
+    shipped_on_board: '',
+  });
+
+  const [globalMarks, setGlobalMarks] = useState('');
+  const [observations, setObservations] = useState('');
+  const [refs, setRefs] = useState({
+    dae: '',
+    hs_code: '',
+    fda: '',
+    contract: '',
+    invoice: '',
+    lote: '',
+  });
 
   const [emailOption, setEmailOption] = useState('');
   const [emailValue, setEmailValue] = useState('');
-  const formRef = useRef(null);
+
+  // Added state for button disabling
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [rows, setRows] = useState([
     {
-      marks: '',
       container: '',
+      seals: '',
       packages: '',
       description: '',
       grossWeight: '',
@@ -26,12 +61,33 @@ function App() {
     }
   ]);
 
+  const sums = useMemo(() => {
+    const add = (field) => rows.reduce((acc, row) => acc + (parseAmount(row[field]) || 0), 0);
+    const any = (field) => rows.some((row) => parseAmount(row[field]) != null);
+    return {
+      packages: formatAmount(add('packages')),
+      net: any('netWeight') ? formatAmount(add('netWeight')) : '',
+      gross: any('grossWeight') ? formatAmount(add('grossWeight')) : '',
+      cbm: any('measurements') ? formatAmount(add('measurements')) : '',
+    };
+  }, [rows]);
+
+
+  // === HANDLERS ===
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const addRow = () => {
     setRows([
       ...rows,
       {
-        marks: '',
         container: '',
+        seals: '',
         packages: '',
         description: '',
         grossWeight: '',
@@ -44,68 +100,26 @@ function App() {
   const handleSubmitJson = async (e) => {
     e.preventDefault();
 
-    const form = formRef.current;
-    const elements = form.querySelectorAll("input, textarea");
+    // === VALIDATION ===
+    if (!formData.shipper.trim()) return toast.error("Shipper/Export requerido");
+    if (!formData.consignee.trim()) return toast.error("Consignee requerido");
+    if (!formData.notify_party.trim()) return toast.error("Notify party requerido");
+    if (!formData.booking_number.trim()) return toast.error("Booking requerido");
+    if (!formData.vessel.trim()) return toast.error("Vessel requerido");
+    if (!formData.port_of_loading.trim()) return toast.error("Puerto de carga requerido");
+    if (!formData.port_of_discharge.trim()) return toast.error("Puerto de descarga requerido");
 
-    // IDs opcionales
-    const optionalIds = ["secondNotify", "secondNotifyContact", "emailList"];
-
-    // === VALIDACIÓN GENERAL DE CAMPOS VACÍOS ===
-    for (let el of elements) {
-      if (optionalIds.includes(el.id)) continue;
-
-      if (!el.value.trim()) {
-        toast.error(
-          <div className="toast-content">
-            <i className="bi bi-exclamation-triangle-fill"></i>
-            <b>Campo requerido:</b> <br /> {el.placeholder || el.name}
-          </div>,
-          {
-            position: "bottom-right",
-            className: "error-toast",
-            autoClose: 5000,
-          }
-        );
-        return;
-      }
-    }
-
-    // === VALIDAR RADIO DE EMAIL ===
     if (emailOption === "") {
-      toast.error(
-        <div className="toast-content">
-          <i className="bi bi-exclamation-triangle-fill"></i>
-          <b>Campo requerido:</b> <br /> ¿Desea recibir correo?
-        </div>,
-        {
-          position: "bottom-right",
-          className: "error-toast",
-          autoClose: 5000,
-        }
-      );
-      return;
+      return toast.error("Seleccione si desea recibir correo");
     }
-
     // === VALIDAR CORREO SI ELIGIÓ "SÍ" ===
     let email_to = [];
-
     if (emailOption === "yes") {
       if (!emailValue.trim()) {
-        toast.error(
-          <div className="toast-content">
-            <i className="bi bi-exclamation-triangle-fill"></i>
-            <b>Campo requerido:</b> <br /> Correos electrónicos
-          </div>,
-          {
-            position: "bottom-right",
-            className: "error-toast",
-            autoClose: 5000,
-          }
-        );
+        toast.error("Campo requerido: Correos electrónicos", { className: "error-toast" });
         return;
       }
 
-      // validar emails separados por coma
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       email_to = emailValue
         .split(",")
@@ -114,153 +128,223 @@ function App() {
 
       for (let em of email_to) {
         if (!emailRegex.test(em)) {
-          toast.error(
-            <div className="toast-content">
-              <i className="bi bi-exclamation-triangle-fill"></i>
-              <b>Correo inválido:</b> <br /> {em}
-            </div>,
-            {
-              position: "bottom-right",
-              className: "error-toast",
-              autoClose: 5000,
-            }
-          );
+          toast.error(`Correo inválido: ${em}`, { className: "error-toast" });
           return;
         }
       }
     }
 
-    // === VALIDACIÓN FILAS DINÁMICAS ===
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-
-      if (!r.marks.trim()) return toast.error(`Fila ${i + 1}: Marks & Numbers es requerido.`);
-      if (!r.container.trim()) return toast.error(`Fila ${i + 1}: Container Numbers es requerido.`);
-      if (!r.description.trim()) return toast.error(`Fila ${i + 1}: Description es requerido.`);
-      if (!r.packages.trim()) return toast.error(`Fila ${i + 1}: Packages es requerido.`);
-      if (!r.grossWeight.trim()) return toast.error(`Fila ${i + 1}: Gross Weight es requerido.`);
-      if (!r.netWeight.trim()) return toast.error(`Fila ${i + 1}: Net Weight es requerido.`);
-      if (!r.measurements.trim()) return toast.error(`Fila ${i + 1}: Measurements es requerido.`);
+      if (!r.container.trim()) return toast.error(`Fila ${i + 1}: Container No. requerido.`);
+      if (!r.seals.trim()) return toast.error(`Fila ${i + 1}: Seals No. requerido.`);
+      if (!String(r.packages).trim()) return toast.error(`Fila ${i + 1}: Packages requerido.`);
+      if (!r.description.trim()) return toast.error(`Fila ${i + 1}: Description requerido.`);
+      if (!String(r.grossWeight).trim()) return toast.error(`Fila ${i + 1}: Gross W. requerido.`);
     }
 
-    // === CAPTURAR CAMPOS NORMALES ===
-    const shipper = form.shipper.value.trim();
-    const consignee = form.consignee.value.trim();
-    const notify_party = form.notify.value.trim();
-    const booking_number = form.bookingNumber.value.trim();
-    const bill_of_lading_number = "";
-    const vessel = form.vessel.value.trim();
-    const voy_number = form.voy_number?.value?.trim() || "";
-    const port_of_loading = form.portOfLoading.value.trim();
-    const port_of_discharge = form.portOfDischarge.value.trim();
+    // === PREPARE PAYLOAD ===
+    const formattedRows = rows.map((r) => {
+      let marksContent = "";
+      if (r.container) marksContent += `CONTAINER:\n${r.container}`;
+      if (r.seals) {
+        if (marksContent) marksContent += "\n";
+        marksContent += `SEALS:\n${r.seals}`;
+      }
 
-    // === FILAS ===
-    const formattedRows = rows.map((r) => ({
-      marks_numbers: r.marks,
-      container_numbers: r.container,
-      description: r.description,
-      packages: Number(r.packages),
-      gross_weight: Number(r.grossWeight),
-      net_weight: Number(r.netWeight),
-      measurements: Number(r.measurements),
-    }));
+      const description = [r.description.trim()];
+      if (String(r.netWeight).trim()) description.push(`NET: ${String(r.netWeight).trim()} KG`);
 
-    // === TOTALES ===
-    const total_packages = rows.reduce((a, r) => a + Number(r.packages), 0);
-    const total_gross_weight = rows.reduce((a, r) => a + Number(r.grossWeight), 0);
-    const total_measurements = rows.reduce((a, r) => a + Number(r.measurements), 0);
+      return {
+        marks_numbers: marksContent.trim(),
+        description: description.filter(Boolean).join("\n"),
+        packages: r.packages,
+        gross_weight: r.grossWeight,
+        net_weight: r.netWeight,
+        measurements: r.measurements,
+      };
+    });
 
-    const send_email = emailOption === "yes" ? "si" : "no";
+    const footerLines = [
+      observations.trim(),
+      formData.type_of_move.trim() ? `TYPE OF MOVE: ${formData.type_of_move.trim()}` : "",
+      sums.packages ? `TOTAL BULTOS: ${sums.packages}` : "",
+      sums.net ? `PESO NETO TOTAL: ${sums.net} KG` : "",
+      sums.gross ? `PESO BRUTO TOTAL: ${sums.gross} KG` : "",
+      sums.cbm ? `CBM TOTAL: ${sums.cbm}` : "",
+      refs.contract.trim() ? `CONTRACT: ${refs.contract.trim()}` : "",
+      refs.dae.trim() ? `DAE: ${refs.dae.trim()}` : "",
+      refs.fda.trim() ? `FDA: ${refs.fda.trim()}` : "",
+      refs.hs_code.trim() ? `HS CODE: ${refs.hs_code.trim()}` : "",
+      refs.invoice.trim() ? `FACTURA: ${refs.invoice.trim()}` : "",
+      refs.lote.trim() ? `LOTE: ${refs.lote.trim()}` : "",
+    ].filter(Boolean);
+
+    const totalsRow = {
+      marks_numbers: globalMarks.trim() ? `MARCAS:\n${globalMarks.trim()}` : "",
+      description: footerLines.join("\n"),
+      packages: sums.packages,
+      gross_weight: sums.gross,
+      net_weight: sums.net,
+      measurements: sums.cbm,
+    };
+
+    // Append totals row
+    const finalRows = [...formattedRows, totalsRow];
 
     const jsonPayload = {
       template_name: "Template.docx",
       data: {
-        shipper,
-        consignee,
-        notify_party,
-        booking_number,
-        bill_of_lading_number,
-        vessel,
-        voy_number,
-        port_of_loading,
-        port_of_discharge,
-        port_of_discharge,
-        rows: formattedRows,
-        // Totals removed as requested by user
-        // total_packages,
-        // total_gross_weight,
-        // total_measurements,
+        ...formData,
+        notify_party: [formData.notify_party.trim(), formData.second_notify.trim() ? `2ND NOTIFY:\n${formData.second_notify.trim()}` : ""]
+          .filter(Boolean)
+          .join("\n\n"),
+        place_of_delivery: formData.place_of_delivery.trim() || formData.port_of_discharge.trim(),
+        rows: finalRows,
+        global_marks: globalMarks,
+        observations,
+        ...refs,
+        total_packages: sums.packages,
+        total_net: sums.net,
+        total_gross: sums.gross,
+        total_cbm: sums.cbm,
       },
-      send_email,
+      send_email: emailOption === "yes" ? "si" : "no",
       email_to,
       email_cc: [],
       email_cco: [],
     };
 
-    // SI TODO OK
-    toast.success("Todos los campos están completos. Enviando JSON...");
+    // Disable button before starting process
+    setIsSubmitting(true);
 
-    descargarJson(jsonPayload);
-    // === ENVÍO AL MICROSERVICIO ===
-    try {
-      const res = await fetch("http://localhost:8100/documents/generate_and_send", {
+    toast.info("Generando Proforma...", { autoClose: 2000 });
+
+    const fileName = `PROFORMA_${formData.booking_number.trim().replace(/[^\w.-]+/g, "_")}.docx`;
+    const downloadWord = async () => {
+      const res = await fetch("http://localhost:8100/documents/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(jsonPayload),
       });
+      if (!res.ok) throw new Error(await readError(res));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
 
-      const result = await res.json();
-      console.log(result);
-
-      toast.success("JSON enviado correctamente.");
+    try {
+      if (emailOption === "yes") {
+        const res = await fetch("http://localhost:8100/documents/generate_and_send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(jsonPayload),
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        toast.success("Proforma enviada");
+      } else {
+        await downloadWord();
+        toast.success("Proforma generada");
+      }
+      setTimeout(() => setIsSubmitting(false), 5000);
     } catch (err) {
       console.error(err);
-      toast.error("Error enviando JSON al microservicio.");
+      toast.error(err.message || "No se pudo generar la proforma");
+      if (emailOption === "yes") {
+        try {
+          await downloadWord();
+          toast.info("El correo falló. Se descargó el Word.");
+        } catch (downloadErr) {
+          console.error(downloadErr);
+        }
+      }
+      setIsSubmitting(false);
     }
   };
 
-  function descargarJson(data) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-
-    a.href = url;
-    a.download = "proforma.json";   // Nombre del archivo descargado
-    a.click();
-
-    URL.revokeObjectURL(url);
+  async function readError(res) {
+    try {
+      const data = await res.json();
+      const detail = data?.detail;
+      return typeof detail === "string" ? detail : "No se pudo generar la proforma";
+    } catch {
+      return "No se pudo generar la proforma";
+    }
   }
 
+  // Combine data for Preview
+  const previewData = {
+    ...formData,
+    rows,
+    globalMarks,
+    observations,
+    refs,
+    sums,
+  };
+
   return (
-    <div className='border h[90%]'>
-      <div className="scale-container">
-        <div className="container mt-5">
-          <img src="src/assets/logo.png" alt="Logo" className="logo-top mb-4" />
-          <h2 className="mb-4">PROFORMA</h2>
-
-          <form ref={formRef}>
-            {/* <FormHeader /> */}
-            <PartyDetails />
-            <PortDetails />
-            <DynamicRows rows={rows} setRows={setRows} addRow={addRow} />
-            <FooterFields
-              emailOption={emailOption}
-              setEmailOption={setEmailOption}
-              emailValue={emailValue}
-              setEmailValue={setEmailValue}
-            />
-
-            <div className="mb-3 mt-4">
-              <button type="button" className="btn btn-primary" onClick={handleSubmitJson}>
-                Generar
-              </button>
-            </div>
-          </form>
+    <Layout formData={previewData}>
+      {/* Container for the form content */}
+      <div className="container-fluid p-0 compact-form">
+        <div className="d-flex align-items-center mb-3 border-bottom pb-2">
+          <img src="src/assets/logo.png" alt="Masterview" style={{ maxHeight: '40px', marginRight: '0.75rem' }} />
+          <h5 className="mb-0 text-primary fw-bold" style={{ color: 'var(--color-primary)' }}>GENERADOR DE PROFORMA</h5>
         </div>
+
+        <form onSubmit={handleSubmitJson} className="needs-validation" style={{ fontSize: '0.9rem' }}>
+          <PartyDetails formData={formData} onChange={handleInputChange} />
+
+          <hr className="my-3 text-secondary opacity-25" />
+
+          <PortDetails formData={formData} onChange={handleInputChange} />
+
+          <h6 className="mt-4 mb-2 text-secondary text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>Cargo Particulars</h6>
+          <DynamicRows rows={rows} setRows={setRows} addRow={addRow} />
+
+          <TotalsSection
+            globalMarks={globalMarks} setGlobalMarks={setGlobalMarks}
+            observations={observations} setObservations={setObservations}
+            refs={refs} setRefs={setRefs}
+            sumPackages={sums.packages}
+            sumNet={sums.net}
+            sumGross={sums.gross}
+            sumCbm={sums.cbm}
+          />
+
+          <FooterFields
+            emailOption={emailOption}
+            setEmailOption={setEmailOption}
+            emailValue={emailValue}
+            setEmailValue={setEmailValue}
+          />
+
+          <div className="d-grid gap-2 d-md-flex justify-content-md-start mt-4 mb-4">
+            <button
+              type="submit"
+              disabled={isSubmitting} // Disable when submitting or after success
+              className="btn px-4 shadow-sm"
+              style={{
+                backgroundColor: isSubmitting ? '#6c757d' : '#0A2540',
+                borderColor: isSubmitting ? '#6c757d' : '#0A2540',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                fontSize: '0.9rem',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1
+              }}
+            >
+              <i className={`bi ${isSubmitting ? 'bi-check-circle' : 'bi-file-earmark-pdf'} me-2`}></i>
+              {isSubmitting ? "Listo" : emailOption === "yes" ? "Generar y enviar" : "Generar Proforma"}
+            </button>
+          </div>
+        </form>
       </div>
-      <ToastContainer />
-    </div>
+      <ToastContainer position="bottom-right" />
+    </Layout>
   );
 }
 

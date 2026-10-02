@@ -1,8 +1,23 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   color: #0c3360;
+}
+
+.compact-form .form-control,
+.compact-form .form-select {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.compact-form .form-label {
+  margin-bottom: 0.2rem;
+  font-size: 0.8rem;
+}
+
+.compact-form h6 {
+  font-size: 0.9rem;
 }
 
 .logo {
@@ -11,9 +26,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -22,6 +39,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -47,8 +65,10 @@
 }
 
 .logo-top {
-  width: 250px; /* Aumenta el tamaño del logo */
+  width: 250px;
+  /* Aumenta el tamaño del logo */
   height: auto;
   display: block;
-  margin-bottom: 2rem; /* Espacio debajo del logo */
+  margin-bottom: 2rem;
+  /* Espacio debajo del logo */
 }

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import './DynamicRows.css';
 
 export default function DynamicRows({ rows, setRows, addRow }) {
 
@@ -8,29 +9,9 @@ export default function DynamicRows({ rows, setRows, addRow }) {
     }
   };
 
-  // === Cálculo de totales ===
-  const totals = useMemo(() => {
-    let totalPackages = 0;
-    let totalGross = 0;
-    let totalMeasurements = 0;
-
-    rows.forEach(r => {
-      totalPackages += Number(r.packages || 0);
-      totalGross += Number(r.grossWeight || 0);
-      totalMeasurements += Number(r.measurements || 0);
-    });
-
-    return {
-      packages: totalPackages,
-      gross: totalGross,
-      measurements: totalMeasurements
-    };
-  }, [rows]);
-
-
-  // === Handler para valores numéricos ===
+  // Conserva coma y punto: 50,318.00 y 24978,00 son pesos reales.
   const handleNumericChange = (e, index, field) => {
-    const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+    const cleaned = e.target.value.replace(/[^0-9.,]/g, "");
     const nr = [...rows];
     nr[index][field] = cleaned;
     setRows(nr);
@@ -39,42 +20,27 @@ export default function DynamicRows({ rows, setRows, addRow }) {
   return (
     <>
       {/* === CABECERAS === */}
-      <div className="d-grid border bg-primary-subtle fw-bold text-center mb-0 mt-4 rounded-top"
-        style={{ gridTemplateColumns: '2fr 1fr 3fr 1fr 1fr 1fr' }}
-      >
-        <label className="border py-1 m-0">Marks & Numbers /<br /> Container Numbers</label>
-        <label className="border py-1 m-0">No. of packages (individual)</label>
-        <label className="border py-1 m-0">Description of packages & goods</label>
-        <label className="border py-1 m-0">Gross Weight</label>
-        <label className="border py-1 m-0">Net Weight</label>
-        <label className="border py-1 m-0">Measurements</label>
+      <div className="dynamic-rows-grid dynamic-rows-header border fw-bold text-center mb-0 mt-4 rounded-top align-items-center">
+        <label className="py-2 m-0 small text-uppercase">Container / Seals</label>
+        <label className="py-2 m-0 small text-uppercase">Pkgs</label>
+        <label className="py-2 m-0 small text-uppercase">Description</label>
+        <label className="py-2 m-0 small text-uppercase">Gross W.</label>
+        <label className="py-2 m-0 small text-uppercase">Net W.</label>
+        <label className="py-2 m-0 small text-uppercase">Meas.</label>
       </div>
 
       {/* === FILAS DINÁMICAS === */}
       {rows.map((row, index) => (
         <div key={index}
-          className="border p-2 mb-2"
-          style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 3fr 1fr 1fr 1fr', gap: '6px' }}
+          className="dynamic-rows-grid border-start border-end border-bottom p-2 mb-0 row-card bg-white"
         >
           {/* Columna 1: Marks & Numbers + Container */}
-          <div className="d-flex flex-column">
+          <div className="d-flex flex-column gap-1">
 
             <textarea
-              className="form-control mb-1"
-              style={{ height: '60px', resize: 'none' }}
-              placeholder="Marks & Numbers"
-              value={row.marks}
-              onChange={e => {
-                const nr = [...rows];
-                nr[index].marks = e.target.value;
-                setRows(nr);
-              }}
-            />
-
-            <textarea
-              className="form-control mb-1"
-              style={{ height: "90px", resize: "none", verticalAlign: "top" }}
-              placeholder="Container Numbers"
+              className="form-control form-control-sm mb-1"
+              style={{ height: "45px", resize: "none" }}
+              placeholder="Container No."
               value={row.container}
               onChange={e => {
                 const nr = [...rows];
@@ -83,12 +49,24 @@ export default function DynamicRows({ rows, setRows, addRow }) {
               }}
             />
 
+            <textarea
+              className="form-control form-control-sm"
+              style={{ height: "45px", resize: "none" }}
+              placeholder="Seals No."
+              value={row.seals}
+              onChange={e => {
+                const nr = [...rows];
+                nr[index].seals = e.target.value;
+                setRows(nr);
+              }}
+            />
+
           </div>
 
           {/* Number of packages */}
           <textarea
-            className="form-control"
-            style={{ height: "60px", resize: "none", paddingTop: "4px" }}
+            className="form-control form-control-sm"
+            style={{ height: "auto", resize: "none" }}
             placeholder="0"
             value={row.packages}
             onChange={e => handleNumericChange(e, index, "packages")}
@@ -96,9 +74,9 @@ export default function DynamicRows({ rows, setRows, addRow }) {
 
           {/* Description */}
           <textarea
-            className="form-control resize-none"
-            style={{ height: '160px' }}
-            placeholder="Description here..."
+            className="form-control form-control-sm"
+            style={{ height: '125px', resize: 'none' }}
+            placeholder="Description..."
             value={row.description}
             onChange={e => {
               const nr = [...rows];
@@ -109,27 +87,27 @@ export default function DynamicRows({ rows, setRows, addRow }) {
 
           {/* Gross Weight */}
           <textarea
-            className="form-control"
-            style={{ height: "60px", resize: "none", paddingTop: "4px" }}
-            placeholder="0"
+            className="form-control form-control-sm"
+            style={{ height: "auto", resize: "none" }}
+            placeholder="0.00"
             value={row.grossWeight}
             onChange={e => handleNumericChange(e, index, "grossWeight")}
           />
 
           {/* Net Weight */}
           <textarea
-            className="form-control"
-            style={{ height: "60px", resize: "none", paddingTop: "4px" }}
-            placeholder="0"
+            className="form-control form-control-sm"
+            style={{ height: "auto", resize: "none" }}
+            placeholder="0.00"
             value={row.netWeight}
             onChange={e => handleNumericChange(e, index, "netWeight")}
           />
 
           {/* Measurements */}
           <textarea
-            className="form-control"
-            style={{ height: "60px", resize: "none", paddingTop: "4px" }}
-            placeholder="0"
+            className="form-control form-control-sm"
+            style={{ height: "auto", resize: "none" }}
+            placeholder="0.00"
             value={row.measurements}
             onChange={e => handleNumericChange(e, index, "measurements")}
           />
@@ -138,34 +116,19 @@ export default function DynamicRows({ rows, setRows, addRow }) {
       ))}
 
       {/* === BOTONES === */}
-      <div className="my-3 d-flex gap-2">
-        <button type="button" className="btn btn-success" onClick={addRow}>Agregar fila</button>
+      <div className="my-3 d-flex gap-2 justify-content-end">
         {rows.length > 1 && (
-          <button type="button" className="btn btn-danger" onClick={removeLastRow}>Borrar fila</button>
+          <button type="button" className="btn btn-outline-danger btn-sm" onClick={removeLastRow}>
+            <i className="bi bi-dash-circle me-1"></i> Borrar
+          </button>
         )}
+        <button type="button" className="btn btn-outline-primary btn-sm" onClick={addRow}>
+          <i className="bi bi-plus-circle me-1"></i> Agregar fila
+        </button>
       </div>
 
-      {/* === TABLA DE TOTALES === */}
-      <div className="border rounded p-2 mb-4">
-        <div className="d-grid fw-bold text-center mb-2"
-          style={{ gridTemplateColumns: '1fr 1fr 1fr' }}
-        >
-          <div className="border p-2">
-            Total Number of Packages:
-            <div className="fw-normal fs-5 mt-1">{totals.packages}</div>
-          </div>
+      {/* === TABLA DE TOTALES REMOVIDA === */}
 
-          <div className="border p-2">
-            Total Gross Weight:
-            <div className="fw-normal fs-5 mt-1">{totals.gross} KGB</div>
-          </div>
-
-          <div className="border p-2">
-            Total Measurement:
-            <div className="fw-normal fs-5 mt-1">{totals.measurements} CBM</div>
-          </div>
-        </div>
-      </div>
     </>
   );
 }

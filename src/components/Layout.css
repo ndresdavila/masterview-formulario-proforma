@@ -1,0 +1,236 @@
+.app-layout {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+.layout-form-section {
+    /* flex: 1; Remvoed to allow inline style override */
+    padding: 2rem;
+    background-color: #0A2540;
+    /* Navy Blue per user request */
+    min-width: 350px;
+    max-width: 100%;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.form-page-container {
+    background-color: white;
+    width: 100%;
+    max-width: 900px;
+    padding: 3rem;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    margin: auto 0;
+    height: fit-content;
+}
+
+.resizer {
+    width: 14px;
+    /* Increased to accommodate thicker bar */
+    background-color: transparent;
+    /* Transparent track */
+    cursor: col-resize;
+    display: flex;
+    align-items: center;
+    /* Vertically center content in track (which is full height) */
+    justify-content: center;
+    z-index: 1000;
+    position: relative;
+    /* Context for sticky child if needed, but flex centering is easier here */
+}
+
+/* 3D Vertical Bar behind button */
+.resizer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    background: linear-gradient(to right, #1c2732, #455A64, #1c2732);
+    box-shadow:
+        inset 0 0 2px rgba(0, 0, 0, 0.8),
+        2px 0 5px rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    z-index: -1;
+    /* Behind handle */
+    transition: background 0.3s;
+}
+
+/* Hover effect for bar - Removed Glow per user request */
+/* .resizer:hover::before, .resizer.resizing::before { ... } */
+
+/* Prevent Selection Logic */
+.disable-selection {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: col-resize;
+    /* Force cursor globally while resizing */
+}
+
+/* The actual handle - Lighter Version */
+.resizer-handle-icon {
+    position: fixed;
+    /* Stick to viewport center */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 33px;
+    /* Slightly larger */
+    height: 33px;
+    border-radius: 50%;
+
+    /* Lighter 3D Metallic Effect (Steel Blue/Silver) */
+    background: linear-gradient(145deg, #ECEFF1, #B0BEC5);
+    box-shadow:
+        5px 5px 15px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 1px #90A4AE;
+    /* Lighter border */
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: #37474F;
+    /* Darker icon color for contrast against light bg */
+
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 2;
+    /* Ensure on top of bar */
+}
+
+/* Hover Effects */
+.resizer:hover .resizer-handle-icon,
+.resizer.resizing .resizer-handle-icon {
+    /* Glow and Zoom */
+    transform: translateY(-50%) scale(1.15);
+    box-shadow:
+        0 0 20px rgba(0, 255, 255, 0.6),
+        inset 0 0 0 2px #00BCD4;
+    background: #E0F7FA;
+    /* Very light cyan tint on hover */
+}
+
+/* Icons (Arrows) */
+.resizer-handle-icon i {
+    font-size: 16px;
+    font-weight: 900;
+    /* Thicker */
+    transition: color 0.3s ease;
+}
+
+.resizer:hover .resizer-handle-icon i,
+.resizer.resizing .resizer-handle-icon i {
+    color: #00BCD4;
+    /* Cyan/Teal for "ON" state */
+    text-shadow: 0 0 8px rgba(0, 188, 212, 0.8);
+}
+
+/* Resizer track - keep transparent */
+.resizer:hover,
+.resizer.resizing {
+    background-color: transparent;
+}
+
+.layout-preview-section {
+    /* flex: 1; Removed to allow inline style override */
+    background-color: #333;
+    display: none;
+    /* Hidden on mobile by default */
+    min-width: 300px;
+    /* Reduced min-width to allow more resizing flexibility */
+}
+
+.preview-sticky-wrapper {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    /* Enable scroll if content exceeds 100vh */
+}
+
+/* Floating Action Button */
+.fab-preview {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--color-accent);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: transform 0.2s;
+}
+
+.fab-preview:active {
+    transform: scale(0.95);
+}
+
+/* Modal */
+.preview-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 1rem;
+}
+
+.preview-modal-content {
+    background: white;
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    border-radius: 8px;
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    color: #333;
+    font-size: 2rem;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Desktop Styles */
+@media (min-width: 1024px) {
+    .layout-preview-section {
+        display: block;
+    }
+
+    .fab-preview {
+        display: none;
+    }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .layout-form-section {
+        padding: 1rem;
+    }
+
+    .form-page-container {
+        padding: 1.5rem;
+    }
+}
