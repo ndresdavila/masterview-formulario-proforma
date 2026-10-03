@@ -1,79 +1,94 @@
 import React from 'react';
+import AutoTextarea from './AutoTextarea';
+import { formatAmount, parseAmount } from '../utils/amount';
+import { readSummaryFigures, sameAmount } from '../utils/summaryCheck';
 import './TotalsSection.css';
 
-function refChange(refs, setRefs, key) {
-    return (e) => setRefs({ ...refs, [key]: e.target.value });
+function checkLine(summary, found, expectedRaw) {
+    if (!String(summary || '').trim()) return null;
+    const expected = parseAmount(expectedRaw);
+    if (found == null) return { ok: false, text: 'No aparece en el texto' };
+    if (expected == null || !sameAmount(found, expected)) {
+        return { ok: false, text: `En el texto: ${formatAmount(found)}` };
+    }
+    return { ok: true, text: 'Coincide' };
+}
+
+function TotalFigure({ label, value, unit, status }) {
+    const shown = value || (unit ? '0.0' : '0');
+    return (
+        <div className="totals-figure">
+            <span className="totals-caption">{label}</span>
+            <div className="totals-value">{unit ? `${shown} ${unit}` : shown}</div>
+            {status && (
+                <div className={status.ok ? 'totals-check ok' : 'totals-check bad'}>{status.text}</div>
+            )}
+        </div>
+    );
 }
 
 export default function TotalsSection({
     globalMarks, setGlobalMarks,
-    observations, setObservations,
-    refs, setRefs,
+    cargoSummary, setCargoSummary,
     sumPackages, sumNet, sumGross, sumCbm,
 }) {
+    const found = readSummaryFigures(cargoSummary);
+
     return (
-        <div className="mt-4">
-            <div className="totals-section-container">
-                <div className="totals-col-1 d-flex flex-column gap-3">
+        <>
+            <div className="party-block mb-3">
+                <div className="summary-split">
                     <div>
-                        <label className="form-label fw-bold small text-uppercase text-secondary">Marcas</label>
-                        <textarea
+                        <label className="totals-caption">Marks and Numbers<span className="req-star">*</span></label>
+                        <AutoTextarea
                             className="form-control"
-                            rows="4"
-                            placeholder="Opcional. Shipper, producto, origen, lote, grado…"
+                            rows="8"
+                            placeholder="Ingrese las marcas"
                             value={globalMarks}
                             onChange={(e) => setGlobalMarks(e.target.value)}
                             style={{ resize: 'none' }}
                         />
                     </div>
-                </div>
-
-                <div className="totals-col-2 border rounded p-3 bg-light d-flex flex-column justify-content-center gap-2">
                     <div>
-                        <div className="text-secondary small text-uppercase">Total bultos</div>
-                        <div className="fs-4 fw-bold text-primary">{sumPackages || '—'}</div>
-                    </div>
-                    <div className="small text-secondary">
-                        <div>Neto {sumNet || '—'}</div>
-                        <div>Bruto {sumGross || '—'}</div>
-                        <div>CBM {sumCbm || '—'}</div>
+                        <label className="totals-caption">Descripción<span className="req-star">*</span></label>
+                        <AutoTextarea
+                            className="form-control"
+                            rows="8"
+                            placeholder="Ingrese el resumen"
+                            value={cargoSummary}
+                            onChange={(e) => setCargoSummary(e.target.value)}
+                            style={{ resize: 'none' }}
+                        />
                     </div>
                 </div>
+            </div>
 
-                <div className="totals-col-3">
-                    <label className="form-label fw-bold small text-uppercase text-secondary">Notas de carga</label>
-                    <textarea
-                        className="form-control h-100"
-                        placeholder="Opcional. Ej. 2 x 20 DRY, EXPRESS RELEASE"
-                        value={observations}
-                        onChange={(e) => setObservations(e.target.value)}
-                        style={{ resize: 'none', minHeight: '120px' }}
+            <div className="totals-info mb-3">
+                <div className="totals-info-grid">
+                    <TotalFigure
+                        label="Total packages"
+                        value={sumPackages}
+                        status={checkLine(cargoSummary, found.packages, sumPackages)}
+                    />
+                    <TotalFigure
+                        label="Total net weight"
+                        value={sumNet}
+                        unit="KG"
+                        status={checkLine(cargoSummary, found.net, sumNet)}
+                    />
+                    <TotalFigure
+                        label="Total gross weight"
+                        value={sumGross}
+                        unit="KG"
+                        status={checkLine(cargoSummary, found.gross, sumGross)}
+                    />
+                    <TotalFigure
+                        label="Measurement"
+                        value={sumCbm}
+                        unit="CBM"
                     />
                 </div>
             </div>
-
-            <h6 className="mt-4 mb-2 text-secondary text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>Referencias</h6>
-            <div className="row g-2">
-                {[
-                    ['dae', 'DAE', '028-2026-…'],
-                    ['hs_code', 'HS / P.A.', '180100 o 1604.19.00'],
-                    ['fda', 'FDA', 'Opcional'],
-                    ['contract', 'Contrato', 'CO. P…'],
-                    ['invoice', 'Factura', 'Opcional'],
-                    ['lote', 'Lote', 'Opcional'],
-                ].map(([key, label, placeholder]) => (
-                    <div className="col-md-4" key={key}>
-                        <label className="form-label fw-bold small text-uppercase text-secondary">{label}</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder={placeholder}
-                            value={refs[key]}
-                            onChange={refChange(refs, setRefs, key)}
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
+        </>
     );
 }

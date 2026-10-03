@@ -1,12 +1,71 @@
-.totals-section-container {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr 1.5fr;
-    /* Col 1 slightly bigger, Col 2 smaller, Col 3 bigger */
-    gap: 20px;
+.totals-info {
+    background: #cfdeef;
+    border-radius: 8px;
+    padding: 0.85rem 1rem 1rem;
 }
 
-@media (max-width: 768px) {
-    .totals-section-container {
+.totals-caption {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary, #6c757d);
+    margin-bottom: 0.25rem;
+}
+
+.totals-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.totals-figure {
+    background: #fff;
+    border: 1px solid #d3dde8;
+    border-radius: 6px;
+    padding: 0.65rem 0.7rem;
+    min-height: 72px;
+}
+
+.totals-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--color-primary, #0a2540);
+    line-height: 1.15;
+}
+
+.totals-check {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.totals-check.ok {
+    color: #0f7b4c;
+}
+
+.totals-check.bad {
+    color: #b42318;
+}
+
+.summary-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem 1.5rem;
+    align-items: start;
+}
+
+@container formpage (max-width: 760px) {
+    .totals-info-grid,
+    .summary-split {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@container formpage (max-width: 480px) {
+    .totals-info-grid,
+    .summary-split {
         grid-template-columns: 1fr;
     }
 }

@@ -3,14 +3,38 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './custom-toast.css';
 import './App.css';
+import logoImg from './assets/logo.png';
 
 import Layout from './components/Layout';
 import PartyDetails from './components/PartyDetails';
 import PortDetails from './components/PortDetails';
 import DynamicRows from './components/DynamicRows';
-import FooterFields from './components/FooterFields';
 import TotalsSection from './components/TotalsSection';
 import { formatAmount, parseAmount } from './utils/amount';
+import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
+import {
+  containerMarks,
+  containerDescription,
+  notifyText,
+  vesselLine,
+  summaryDescription,
+} from './utils/proformaText';
+
+const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
+const MAILBOX = "log@masterview.me";
+
+function emptyCargoItem() {
+  return {
+    id: crypto.randomUUID(),
+    container: '',
+    seals: '',
+    packages: '',
+    description: '',
+    grossWeight: '',
+    netWeight: '',
+    measurements: '',
+  };
+}
 
 function App() {
   // === STATE MANAGEMENT ===
@@ -20,46 +44,18 @@ function App() {
     notify_party: '',
     second_notify: '',
     booking_number: '',
-    bill_of_lading_number: '',
     vessel: '',
     voy_number: '',
     port_of_loading: '',
     port_of_discharge: '',
-    place_of_delivery: '',
-    type_of_move: '',
-    freight_payable: '',
-    issue_date: '',
-    shipped_on_board: '',
   });
 
   const [globalMarks, setGlobalMarks] = useState('');
-  const [observations, setObservations] = useState('');
-  const [refs, setRefs] = useState({
-    dae: '',
-    hs_code: '',
-    fda: '',
-    contract: '',
-    invoice: '',
-    lote: '',
-  });
+  const [cargoSummary, setCargoSummary] = useState('');
 
-  const [emailOption, setEmailOption] = useState('');
-  const [emailValue, setEmailValue] = useState('');
-
-  // Added state for button disabling
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [rows, setRows] = useState([
-    {
-      container: '',
-      seals: '',
-      packages: '',
-      description: '',
-      grossWeight: '',
-      netWeight: '',
-      measurements: ''
-    }
-  ]);
+  const [rows, setRows] = useState([emptyCargoItem()]);
 
   const sums = useMemo(() => {
     const add = (field) => rows.reduce((acc, row) => acc + (parseAmount(row[field]) || 0), 0);
@@ -83,18 +79,7 @@ function App() {
   };
 
   const addRow = () => {
-    setRows([
-      ...rows,
-      {
-        container: '',
-        seals: '',
-        packages: '',
-        description: '',
-        grossWeight: '',
-        netWeight: '',
-        measurements: ''
-      }
-    ]);
+    setRows([...rows, emptyCargoItem()]);
   };
 
   const handleSubmitJson = async (e) => {
@@ -106,87 +91,62 @@ function App() {
     if (!formData.notify_party.trim()) return toast.error("Notify party requerido");
     if (!formData.booking_number.trim()) return toast.error("Booking requerido");
     if (!formData.vessel.trim()) return toast.error("Vessel requerido");
+    if (!formData.voy_number.trim()) return toast.error("Voy Nº requerido");
     if (!formData.port_of_loading.trim()) return toast.error("Puerto de carga requerido");
     if (!formData.port_of_discharge.trim()) return toast.error("Puerto de descarga requerido");
 
-    if (emailOption === "") {
-      return toast.error("Seleccione si desea recibir correo");
-    }
-    // === VALIDAR CORREO SI ELIGIÓ "SÍ" ===
-    let email_to = [];
-    if (emailOption === "yes") {
-      if (!emailValue.trim()) {
-        toast.error("Campo requerido: Correos electrónicos", { className: "error-toast" });
-        return;
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      email_to = emailValue
-        .split(",")
-        .map((e) => e.trim())
-        .filter((e) => e !== "");
-
-      for (let em of email_to) {
-        if (!emailRegex.test(em)) {
-          toast.error(`Correo inválido: ${em}`, { className: "error-toast" });
-          return;
-        }
-      }
-    }
-
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
-      if (!r.container.trim()) return toast.error(`Fila ${i + 1}: Container No. requerido.`);
-      if (!r.seals.trim()) return toast.error(`Fila ${i + 1}: Seals No. requerido.`);
-      if (!String(r.packages).trim()) return toast.error(`Fila ${i + 1}: Packages requerido.`);
-      if (!r.description.trim()) return toast.error(`Fila ${i + 1}: Description requerido.`);
-      if (!String(r.grossWeight).trim()) return toast.error(`Fila ${i + 1}: Gross W. requerido.`);
+      if (!r.container.trim()) return toast.error(`Contenedor ${i + 1}: número de contenedor requerido.`);
+      if (!r.seals.trim()) return toast.error(`Contenedor ${i + 1}: número de sello requerido.`);
+      if (!String(r.packages).trim()) return toast.error(`Contenedor ${i + 1}: número de bultos requerido.`);
+      if (parseAmount(r.packages) == null) return toast.error(`Contenedor ${i + 1}: número de bultos no es válido.`);
+      if (!r.description.trim()) return toast.error(`Contenedor ${i + 1}: descripción requerida.`);
+      if (!String(r.netWeight).trim()) return toast.error(`Contenedor ${i + 1}: peso neto requerido.`);
+      if (parseAmount(r.netWeight) == null) return toast.error(`Contenedor ${i + 1}: peso neto no es válido.`);
+      if (!String(r.grossWeight).trim()) return toast.error(`Contenedor ${i + 1}: peso bruto requerido.`);
+      if (parseAmount(r.grossWeight) == null) return toast.error(`Contenedor ${i + 1}: peso bruto no es válido.`);
+      if (!String(r.measurements).trim()) return toast.error(`Contenedor ${i + 1}: measurement requerido.`);
+      if (parseAmount(r.measurements) == null) return toast.error(`Contenedor ${i + 1}: measurement no es válido.`);
+    }
+
+    if (!globalMarks.trim()) return toast.error('Marks and Numbers es requerido.');
+    if (!cargoSummary.trim()) return toast.error('La descripción del resumen es requerida.');
+
+    const found = readSummaryFigures(cargoSummary);
+    const expectedNet = sums.net ? parseAmount(sums.net) : null;
+    const expectedGross = sums.gross ? parseAmount(sums.gross) : null;
+    const checks = [
+      ['packages', found.packages, parseAmount(sums.packages), sums.packages],
+      ['peso neto (KN)', found.net, expectedNet, sums.net],
+      ['peso bruto (KB)', found.gross, expectedGross, sums.gross],
+    ];
+    for (const [label, written, expected, shown] of checks) {
+      if (written == null) return toast.error(`No se encontró el total de ${label} en el resumen.`);
+      if (!sameAmount(written, expected)) {
+        return toast.error(`El total de ${label} del resumen (${formatAmount(written)}) no coincide con los contenedores (${shown || '—'}).`);
+      }
     }
 
     // === PREPARE PAYLOAD ===
-    const formattedRows = rows.map((r) => {
-      let marksContent = "";
-      if (r.container) marksContent += `CONTAINER:\n${r.container}`;
-      if (r.seals) {
-        if (marksContent) marksContent += "\n";
-        marksContent += `SEALS:\n${r.seals}`;
-      }
+    const formattedRows = rows.map((r) => ({
+      marks_numbers: containerMarks(r),
+      description: containerDescription(r),
+      packages: r.packages,
+      gross_weight: r.grossWeight,
+      net_weight: r.netWeight,
+      measurements: r.measurements,
+    }));
 
-      const description = [r.description.trim()];
-      if (String(r.netWeight).trim()) description.push(`NET: ${String(r.netWeight).trim()} KG`);
-
-      return {
-        marks_numbers: marksContent.trim(),
-        description: description.filter(Boolean).join("\n"),
-        packages: r.packages,
-        gross_weight: r.grossWeight,
-        net_weight: r.netWeight,
-        measurements: r.measurements,
-      };
-    });
-
-    const footerLines = [
-      observations.trim(),
-      formData.type_of_move.trim() ? `TYPE OF MOVE: ${formData.type_of_move.trim()}` : "",
-      sums.packages ? `TOTAL BULTOS: ${sums.packages}` : "",
-      sums.net ? `PESO NETO TOTAL: ${sums.net} KG` : "",
-      sums.gross ? `PESO BRUTO TOTAL: ${sums.gross} KG` : "",
-      sums.cbm ? `CBM TOTAL: ${sums.cbm}` : "",
-      refs.contract.trim() ? `CONTRACT: ${refs.contract.trim()}` : "",
-      refs.dae.trim() ? `DAE: ${refs.dae.trim()}` : "",
-      refs.fda.trim() ? `FDA: ${refs.fda.trim()}` : "",
-      refs.hs_code.trim() ? `HS CODE: ${refs.hs_code.trim()}` : "",
-      refs.invoice.trim() ? `FACTURA: ${refs.invoice.trim()}` : "",
-      refs.lote.trim() ? `LOTE: ${refs.lote.trim()}` : "",
-    ].filter(Boolean);
+    const marksBody = globalMarks.trim();
 
     const totalsRow = {
-      marks_numbers: globalMarks.trim() ? `MARCAS:\n${globalMarks.trim()}` : "",
-      description: footerLines.join("\n"),
-      packages: sums.packages,
-      gross_weight: sums.gross,
-      net_weight: sums.net,
-      measurements: sums.cbm,
+      marks_numbers: marksBody ? `MARCAS:\n${marksBody}` : "",
+      description: summaryDescription(cargoSummary, sums),
+      packages: "",
+      gross_weight: "",
+      net_weight: "",
+      measurements: "",
     };
 
     // Append totals row
@@ -196,21 +156,22 @@ function App() {
       template_name: "Template.docx",
       data: {
         ...formData,
-        notify_party: [formData.notify_party.trim(), formData.second_notify.trim() ? `2ND NOTIFY:\n${formData.second_notify.trim()}` : ""]
-          .filter(Boolean)
-          .join("\n\n"),
-        place_of_delivery: formData.place_of_delivery.trim() || formData.port_of_discharge.trim(),
+        vessel: vesselLine(formData.vessel, formData.voy_number),
+        notify_party: notifyText(formData.notify_party, formData.second_notify),
+        bill_of_lading_number: '',
+        place_of_delivery: '',
+        freight_payable: '',
+        issue_date: '',
+        shipped_on_board: '',
         rows: finalRows,
         global_marks: globalMarks,
-        observations,
-        ...refs,
+        cargo_summary: cargoSummary,
         total_packages: sums.packages,
         total_net: sums.net,
         total_gross: sums.gross,
         total_cbm: sums.cbm,
       },
-      send_email: emailOption === "yes" ? "si" : "no",
-      email_to,
+      email_to: [MAILBOX],
       email_cc: [],
       email_cco: [],
     };
@@ -218,11 +179,11 @@ function App() {
     // Disable button before starting process
     setIsSubmitting(true);
 
-    toast.info("Generando Proforma...", { autoClose: 2000 });
+    toast.info("Enviando Proforma...", { autoClose: 2000 });
 
     const fileName = `PROFORMA_${formData.booking_number.trim().replace(/[^\w.-]+/g, "_")}.docx`;
     const downloadWord = async () => {
-      const res = await fetch("http://localhost:8100/documents/generate", {
+      const res = await fetch(`${API_BASE}/documents/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(jsonPayload),
@@ -238,29 +199,22 @@ function App() {
     };
 
     try {
-      if (emailOption === "yes") {
-        const res = await fetch("http://localhost:8100/documents/generate_and_send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(jsonPayload),
-        });
-        if (!res.ok) throw new Error(await readError(res));
-        toast.success("Proforma enviada");
-      } else {
-        await downloadWord();
-        toast.success("Proforma generada");
-      }
+      const res = await fetch(`${API_BASE}/documents/generate_and_send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jsonPayload),
+      });
+      if (!res.ok) throw new Error(await readError(res));
+      toast.success("Proforma enviada");
       setTimeout(() => setIsSubmitting(false), 5000);
     } catch (err) {
       console.error(err);
       toast.error(err.message || "No se pudo generar la proforma");
-      if (emailOption === "yes") {
-        try {
-          await downloadWord();
-          toast.info("El correo falló. Se descargó el Word.");
-        } catch (downloadErr) {
-          console.error(downloadErr);
-        }
+      try {
+        await downloadWord();
+        toast.info("El correo falló. Se descargó el Word.");
+      } catch (downloadErr) {
+        console.error(downloadErr);
       }
       setIsSubmitting(false);
     }
@@ -281,8 +235,7 @@ function App() {
     ...formData,
     rows,
     globalMarks,
-    observations,
-    refs,
+    cargoSummary,
     sums,
   };
 
@@ -291,8 +244,8 @@ function App() {
       {/* Container for the form content */}
       <div className="container-fluid p-0 compact-form">
         <div className="d-flex align-items-center mb-3 border-bottom pb-2">
-          <img src="src/assets/logo.png" alt="Masterview" style={{ maxHeight: '40px', marginRight: '0.75rem' }} />
-          <h5 className="mb-0 text-primary fw-bold" style={{ color: 'var(--color-primary)' }}>GENERADOR DE PROFORMA</h5>
+          <img src={logoImg} alt="Masterview" style={{ maxHeight: '40px', marginRight: '0.75rem' }} />
+          <h5 className="mb-0 text-primary fw-bold" style={{ color: 'var(--color-primary)' }}>FORMULARIO DE PROFORMA</h5>
         </div>
 
         <form onSubmit={handleSubmitJson} className="needs-validation" style={{ fontSize: '0.9rem' }}>
@@ -305,40 +258,25 @@ function App() {
           <h6 className="mt-4 mb-2 text-secondary text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>Cargo Particulars</h6>
           <DynamicRows rows={rows} setRows={setRows} addRow={addRow} />
 
+          <hr className="my-3 text-secondary opacity-25" />
+
           <TotalsSection
             globalMarks={globalMarks} setGlobalMarks={setGlobalMarks}
-            observations={observations} setObservations={setObservations}
-            refs={refs} setRefs={setRefs}
+            cargoSummary={cargoSummary} setCargoSummary={setCargoSummary}
             sumPackages={sums.packages}
             sumNet={sums.net}
             sumGross={sums.gross}
             sumCbm={sums.cbm}
           />
 
-          <FooterFields
-            emailOption={emailOption}
-            setEmailOption={setEmailOption}
-            emailValue={emailValue}
-            setEmailValue={setEmailValue}
-          />
-
           <div className="d-grid gap-2 d-md-flex justify-content-md-start mt-4 mb-4">
             <button
               type="submit"
-              disabled={isSubmitting} // Disable when submitting or after success
-              className="btn px-4 shadow-sm"
-              style={{
-                backgroundColor: isSubmitting ? '#6c757d' : '#0A2540',
-                borderColor: isSubmitting ? '#6c757d' : '#0A2540',
-                color: '#ffffff',
-                fontWeight: 'bold',
-                fontSize: '0.9rem',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.7 : 1
-              }}
+              disabled={isSubmitting}
+              className="btn px-4 generate-btn"
             >
-              <i className={`bi ${isSubmitting ? 'bi-check-circle' : 'bi-file-earmark-pdf'} me-2`}></i>
-              {isSubmitting ? "Listo" : emailOption === "yes" ? "Generar y enviar" : "Generar Proforma"}
+              <i className={`bi ${isSubmitting ? 'bi-check-circle' : 'bi-envelope'} me-2`}></i>
+              Enviar Proforma
             </button>
           </div>
         </form>

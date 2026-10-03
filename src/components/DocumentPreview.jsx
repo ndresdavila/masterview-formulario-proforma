@@ -1,5 +1,7 @@
 import React from 'react';
 import './DocumentPreview.css';
+import logoImg from '../assets/logo.png';
+import { summaryDescription } from '../utils/proformaText';
 
 const DocumentPreview = ({ data }) => {
     const containerRef = React.useRef(null);
@@ -48,15 +50,13 @@ const DocumentPreview = ({ data }) => {
         port_of_discharge,
         rows = [],
         globalMarks,
-        observations,
-        refs = {},
+        cargoSummary,
         sums = {},
         place_of_delivery,
         bill_of_lading_number,
         freight_payable,
         issue_date,
         shipped_on_board,
-        type_of_move,
     } = data;
 
     return (
@@ -113,7 +113,7 @@ const DocumentPreview = ({ data }) => {
                         {/* LOGO AREA (Spans nicely) */}
                         <div className="bl-cell bl-logo-area">
                             <div className="logo-placeholder">
-                                <img src="src/assets/logo.png" alt="Masterview Logo" className="bl-logo-img" />
+                                <img src={logoImg} alt="Masterview Logo" className="bl-logo-img" />
                                 <div className="bl-company-name">MASTERVIEW S.A.</div>
                                 <div className="bl-slogan">Your cargo, our commitment</div>
                             </div>
@@ -125,7 +125,7 @@ const DocumentPreview = ({ data }) => {
                             <span className="bl-label">Notify Party</span>
                             <div className="bl-content-area" style={{ whiteSpace: 'pre-wrap' }}>
                                 {notify_party}
-                                {second_notify ? `\n\n2ND NOTIFY:\n${second_notify}` : ''}
+                                {second_notify ? `\n\nSecond Notify:\n${second_notify}` : ''}
                             </div>
                         </div>
                     </div>
@@ -158,7 +158,7 @@ const DocumentPreview = ({ data }) => {
                         </div>
                         <div className="bl-cell bl-del">
                             <span className="bl-label">Place of Delivery *</span>
-                            <div className="bl-content-inline">{place_of_delivery || port_of_discharge}</div>
+                            <div className="bl-content-inline">{place_of_delivery}</div>
                         </div>
                     </div>
 
@@ -198,7 +198,8 @@ const DocumentPreview = ({ data }) => {
                                 <div className="bl-col bl-pkgs-content">{row.packages}</div>
                                 <div className="bl-col bl-desc-content" style={{ whiteSpace: 'pre-wrap' }}>
                                     {row.description}
-                                    {row.netWeight ? `\nNET: ${row.netWeight} KG` : ''}
+                                    {row.netWeight ? `\nNET WEIGHT: ${row.netWeight}` : ''}
+                                    {row.grossWeight ? `\nGROSS WEIGHT: ${row.grossWeight}` : ''}
                                 </div>
                                 <div className="bl-col bl-gross-content">{row.grossWeight}</div>
                                 <div className="bl-col bl-meas-content">{row.measurements}</div>
@@ -220,19 +221,7 @@ const DocumentPreview = ({ data }) => {
                             <div className="bl-col bl-pkgs-content">{sums.packages}</div>
                             <div className="bl-col bl-desc-content">
                                 <div style={{ fontSize: '8pt', whiteSpace: 'pre-wrap' }}>
-                                    {[
-                                        observations,
-                                        type_of_move ? `TYPE OF MOVE: ${type_of_move}` : '',
-                                        sums.net ? `PESO NETO TOTAL: ${sums.net} KG` : '',
-                                        sums.gross ? `PESO BRUTO TOTAL: ${sums.gross} KG` : '',
-                                        sums.cbm ? `CBM TOTAL: ${sums.cbm}` : '',
-                                        refs.contract ? `CONTRACT: ${refs.contract}` : '',
-                                        refs.dae ? `DAE: ${refs.dae}` : '',
-                                        refs.fda ? `FDA: ${refs.fda}` : '',
-                                        refs.hs_code ? `HS CODE: ${refs.hs_code}` : '',
-                                        refs.invoice ? `FACTURA: ${refs.invoice}` : '',
-                                        refs.lote ? `LOTE: ${refs.lote}` : '',
-                                    ].filter(Boolean).join('\n')}
+                                    {summaryDescription(cargoSummary, sums)}
                                 </div>
                             </div>
                             <div className="bl-col bl-gross-content">{sums.gross}</div>

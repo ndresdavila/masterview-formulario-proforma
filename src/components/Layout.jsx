@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import DocumentPreview from './DocumentPreview';
 import './Layout.css';
 
+const previewEnabled = import.meta.env.VITE_PREVIEW_ENABLED === 'true'
+
 const Layout = ({ children, formData }) => {
     const [showModal, setShowModal] = useState(false);
     const [leftWidth, setLeftWidth] = useState(50); // Percentage
@@ -41,55 +43,54 @@ const Layout = ({ children, formData }) => {
     }, [isResizing, resize, stopResizing]);
 
     return (
-        <div className={`app-layout ${isResizing ? 'disable-selection' : ''}`} ref={layoutRef}>
-            {/* Left Column: Form */}
+        <div className={`app-layout ${isResizing ? 'disable-selection' : ''} ${previewEnabled ? '' : 'preview-off'}`} ref={layoutRef}>
             <div
                 className="layout-form-section"
-                style={{ width: `${leftWidth}%`, flex: 'none' }}
+                style={previewEnabled ? { width: `${leftWidth}%`, flex: 'none' } : undefined}
             >
                 <div className="form-page-container">
                     {children}
                 </div>
             </div>
 
-            {/* Resizer Handle */}
-            <div
-                className={`resizer ${isResizing ? 'resizing' : ''}`}
-                onMouseDown={startResizing}
-            >
-                <div className="resizer-handle-icon">
-                    <i className="bi bi-chevron-left"></i>
-                    <i className="bi bi-chevron-right"></i>
-                </div>
-            </div>
-
-            {/* Right Column: Preview (Desktop) */}
-            <div
-                className="layout-preview-section"
-                style={{ width: `${100 - leftWidth}%`, flex: 'none' }}
-            >
-                <div className="preview-sticky-wrapper">
-                    <DocumentPreview data={formData} />
-                </div>
-            </div>
-
-            {/* Mobile Floating Button */}
-            <button
-                className="fab-preview"
-                onClick={() => setShowModal(true)}
-                title="Ver Vista Previa"
-            >
-                <i className="bi bi-search"></i>
-            </button>
-
-            {/* Mobile Modal */}
-            {showModal && (
-                <div className="preview-modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="preview-modal-content" onClick={e => e.stopPropagation()}>
-                        <button className="close-modal-btn" onClick={() => setShowModal(false)}>&times;</button>
-                        <DocumentPreview data={formData} />
+            {previewEnabled && (
+                <>
+                    <div
+                        className={`resizer ${isResizing ? 'resizing' : ''}`}
+                        onMouseDown={startResizing}
+                    >
+                        <div className="resizer-handle-icon">
+                            <i className="bi bi-chevron-left"></i>
+                            <i className="bi bi-chevron-right"></i>
+                        </div>
                     </div>
-                </div>
+
+                    <div
+                        className="layout-preview-section"
+                        style={{ width: `${100 - leftWidth}%`, flex: 'none' }}
+                    >
+                        <div className="preview-sticky-wrapper">
+                            <DocumentPreview data={formData} />
+                        </div>
+                    </div>
+
+                    <button
+                        className="fab-preview"
+                        onClick={() => setShowModal(true)}
+                        title="Ver Vista Previa"
+                    >
+                        <i className="bi bi-search"></i>
+                    </button>
+
+                    {showModal && (
+                        <div className="preview-modal-overlay" onClick={() => setShowModal(false)}>
+                            <div className="preview-modal-content" onClick={e => e.stopPropagation()}>
+                                <button className="close-modal-btn" onClick={() => setShowModal(false)}>&times;</button>
+                                <DocumentPreview data={formData} />
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

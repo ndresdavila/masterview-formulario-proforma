@@ -5,18 +5,27 @@
 }
 
 .layout-form-section {
-    /* flex: 1; Remvoed to allow inline style override */
     padding: 2rem;
     background-color: #0A2540;
-    /* Navy Blue per user request */
-    min-width: 350px;
+    min-width: 0;
     max-width: 100%;
     overflow-y: auto;
     display: flex;
     justify-content: center;
 }
 
+.preview-off .layout-form-section {
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+.preview-off .form-page-container {
+    max-width: 1180px;
+}
+
 .form-page-container {
+    container-type: inline-size;
+    container-name: formpage;
     background-color: white;
     width: 100%;
     max-width: 900px;
@@ -140,8 +149,7 @@
     background-color: #333;
     display: none;
     /* Hidden on mobile by default */
-    min-width: 300px;
-    /* Reduced min-width to allow more resizing flexibility */
+    min-width: 0;
 }
 
 .preview-sticky-wrapper {

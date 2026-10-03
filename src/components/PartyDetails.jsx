@@ -1,102 +1,84 @@
 import React from 'react';
+import AutoTextarea from './AutoTextarea';
 
 export default function PartyDetails({ formData, onChange }) {
   return (
     <>
-      {/* === SHIPPER + BOOKING === */}
-      <div className="row mb-4">
-        <div className="col-md-8">
+      <div className="party-block mb-3">
+        <div className="field-booking">
           <label className="form-label fw-bold small text-uppercase text-secondary">
-            Shipper / Export
-          </label>
-          <textarea
-            className="form-control"
-            name="shipper"
-            rows="5"
-            placeholder="Principal or Seller licensee and full address"
-            style={{ resize: "none" }}
-            value={formData.shipper}
-            onChange={onChange}
-          />
-        </div>
-
-        <div className="col-md-4">
-          <label className="form-label fw-bold small text-uppercase text-secondary">
-            Booking Number
+            Booking Number<span className="req-star">*</span>
           </label>
           <input
             type="text"
-            className="form-control mb-3"
+            className="form-control"
             name="booking_number"
-            placeholder="ZIMUGYL… / GYEG… / 6464…"
+            placeholder="Ingrese el número de booking"
             value={formData.booking_number}
             onChange={onChange}
           />
-          <label className="form-label fw-bold small text-uppercase text-secondary">
-            Bill of Lading No.
-          </label>
-          <input
-            type="text"
-            className="form-control"
-            name="bill_of_lading_number"
-            placeholder="Opcional. Vacío si aún no hay BL"
-            value={formData.bill_of_lading_number}
-            onChange={onChange}
-          />
         </div>
+      </div>
+
+      <div className="party-block mb-3">
+        <label className="form-label fw-bold small text-uppercase text-secondary">
+          Shipper / Export<span className="req-star">*</span>
+        </label>
+        <AutoTextarea
+          className="form-control"
+          name="shipper"
+          rows="5"
+          placeholder="Nombre y dirección completa"
+          style={{ resize: "none" }}
+          value={formData.shipper}
+          onChange={onChange}
+        />
       </div>
 
       {/* === CONSIGNEE === */}
-      <div className="row mb-4">
-        <div className="col-md-8">
-          <label className="form-label fw-bold small text-uppercase text-secondary">
-            Consignee
-          </label>
-          <textarea
-            className="form-control"
-            name="consignee"
-            rows="5"
-            placeholder="Name and Full Address"
-            style={{ resize: "none" }}
-            value={formData.consignee}
-            onChange={onChange}
-          />
-        </div>
+      <div className="party-block mb-3">
+        <label className="form-label fw-bold small text-uppercase text-secondary">
+          Consignee<span className="req-star">*</span>
+        </label>
+        <AutoTextarea
+          className="form-control"
+          name="consignee"
+          rows="5"
+          placeholder="Nombre y dirección completa"
+          style={{ resize: "none" }}
+          value={formData.consignee}
+          onChange={onChange}
+        />
       </div>
 
-      {/* === NOTIFY PARTY === */}
-      <div className="row mb-4">
-        <div className="col-md-8">
-          <label className="form-label fw-bold small text-uppercase text-secondary">
-            Notify Party
-          </label>
-          <textarea
-            className="form-control"
-            name="notify_party"
-            rows="5"
-            placeholder="Name and Full Address"
-            style={{ resize: "none" }}
-            value={formData.notify_party}
-            onChange={onChange}
-          />
-        </div>
+      <div className="party-block mb-3">
+        <label className="form-label fw-bold small text-uppercase text-secondary">
+          Notify Party<span className="req-star">*</span>
+        </label>
+        <AutoTextarea
+          className="form-control"
+          name="notify_party"
+          rows="5"
+          placeholder="Nombre y dirección completa"
+          style={{ resize: "none" }}
+          value={formData.notify_party}
+          onChange={onChange}
+        />
       </div>
 
-      <div className="row mb-4">
-        <div className="col-md-8">
-          <label className="form-label fw-bold small text-uppercase text-secondary">
-            2nd Notify
-          </label>
-          <textarea
-            className="form-control"
-            name="second_notify"
-            rows="3"
-            placeholder="Opcional. Vacío si no hay segundo notify"
-            style={{ resize: "none" }}
-            value={formData.second_notify}
-            onChange={onChange}
-          />
-        </div>
+      <div className="party-block mb-3">
+        <label className="form-label fw-bold small text-uppercase text-secondary">
+          Second Notify <span className="opt-tag">(Opcional)</span>
+        </label>
+        <AutoTextarea
+          className="form-control"
+          name="second_notify"
+          rows="3"
+          placeholder="Nombre y dirección completa"
+          style={{ resize: "none" }}
+          value={formData.second_notify}
+          onChange={onChange}
+        />
       </div>
     </>
   );

@@ -11,64 +11,87 @@
   padding: 0.3rem 0.5rem;
 }
 
+.compact-form .form-control::placeholder {
+  color: #a8b4bf;
+  opacity: 1;
+}
+
 .compact-form .form-label {
   margin-bottom: 0.2rem;
   font-size: 0.8rem;
+}
+
+.req-star {
+  color: #ff00aa;
+  font-weight: 700;
+  margin-left: 0.2rem;
+}
+
+.opt-tag {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 0.35rem;
+}
+
+.btn.generate-btn {
+  background: #198754;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.btn.generate-btn:hover:not(:disabled) {
+  background: #157347;
+  color: #fff;
+}
+
+.btn.generate-btn:disabled {
+  background: #6c757d;
+  color: #fff;
+  opacity: 0.7;
+}
+
+.party-block {
+  background: #e4edf9;
+  border-radius: 8px;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.field-booking {
+  width: 18rem;
+  max-width: 100%;
+}
+
+.field-vessel {
+  width: 16rem;
+  max-width: 100%;
+}
+
+.field-voy {
+  width: 6.5rem;
+  max-width: 100%;
+}
+
+@container formpage (max-width: 520px) {
+  .field-booking,
+  .field-vessel,
+  .field-voy {
+    width: 100%;
+  }
 }
 
 .compact-form h6 {
   font-size: 0.9rem;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+@container formpage (max-width: 760px) {
+  .compact-form .row > [class*="col-"] {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
   }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-.scale-container {
-  transform: scale(0.75);
-  transform-origin: top center;
-}
-
-.logo-top {
-  width: 250px;
-  /* Aumenta el tamaño del logo */
-  height: auto;
-  display: block;
-  margin-bottom: 2rem;
-  /* Espacio debajo del logo */
 }
