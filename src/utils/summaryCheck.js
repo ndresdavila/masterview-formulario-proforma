@@ -1,4 +1,4 @@
-import { parseAmount } from './amount'
+import { parseAmount } from './amount.js'
 
 function firstAmount(text, pattern) {
   const match = text.match(pattern)
@@ -12,6 +12,11 @@ function maxAmount(text, pattern) {
   return values.length ? Math.max(...values) : null
 }
 
+function labeledWeight(text, kind) {
+  const pattern = new RegExp(`(?:total\\s+)?${kind}\\s+weight\\s*:?\\s*([\\d.,]+)`, 'gi')
+  return maxAmount(text, pattern)
+}
+
 export function readSummaryFigures(text) {
   const raw = String(text || '')
   if (!raw.trim()) return { packages: null, net: null, gross: null }
@@ -19,11 +24,11 @@ export function readSummaryFigures(text) {
   const packages = firstAmount(raw, /total\s+(?:bags|cajas|boxes|packages|bultos|paquetes)\s*:?\s*([\d.,]+)/i)
     ?? maxAmount(raw, /([\d.,]+)\s*(?:bags|cajas|boxes|packages|bultos|paquetes)\b/gi)
 
-  const net = firstAmount(raw, /total\s+net\s+weight\s*:?\s*([\d.,]+)/i)
+  const net = labeledWeight(raw, 'net')
     ?? firstAmount(raw, /peso\s+neto(?:\s+total)?\s*:?\s*([\d.,]+)/i)
     ?? maxAmount(raw, /([\d.,]+)\s*KN\b/gi)
 
-  const gross = firstAmount(raw, /total\s+gross\s+weight\s*:?\s*([\d.,]+)/i)
+  const gross = labeledWeight(raw, 'gross')
     ?? firstAmount(raw, /peso\s+bruto(?:\s+total)?\s*:?\s*([\d.,]+)/i)
     ?? maxAmount(raw, /([\d.,]+)\s*KB\b/gi)
 
