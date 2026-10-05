@@ -19,8 +19,6 @@ import {
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
-import { downloadLocalProforma } from './utils/localWord';
-
 const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
 const MAILBOX = "log@masterview.me";
 const localWord = import.meta.env.VITE_LOCAL_WORD === "true";
@@ -132,19 +130,6 @@ function App() {
 
     const fileName = `PROFORMA_${formData.booking_number.trim().replace(/[^\w.-]+/g, "_")}.docx`;
 
-    if (localWord) {
-      setIsSubmitting(true);
-      try {
-        await downloadLocalProforma({ formData, rows, globalMarks, cargoSummary, sums, fileName });
-        toast.success("Proforma generada");
-      } catch (err) {
-        console.error(err);
-        toast.error("No se pudo generar la proforma");
-      }
-      setIsSubmitting(false);
-      return;
-    }
-
     // === PREPARE PAYLOAD ===
     const formattedRows = rows.map((r) => ({
       marks_numbers: containerMarks(r),
@@ -193,10 +178,6 @@ function App() {
       email_cco: [],
     };
 
-    // Disable button before starting process
-    setIsSubmitting(true);
-
-    toast.info("Enviando Proforma...", { autoClose: 2000 });
     const downloadWord = async () => {
       const res = await fetch(`${API_BASE}/documents/generate`, {
         method: "POST",
@@ -213,6 +194,22 @@ function App() {
       URL.revokeObjectURL(url);
     };
 
+    setIsSubmitting(true);
+
+    if (localWord) {
+      toast.info("Generando Proforma...", { autoClose: 4000 });
+      try {
+        await downloadWord();
+        toast.success("Proforma generada");
+      } catch (err) {
+        console.error(err);
+        toast.error(err.message || "No se pudo generar la proforma");
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    toast.info("Enviando Proforma...", { autoClose: 2000 });
     try {
       const res = await fetch(`${API_BASE}/documents/generate_and_send`, {
         method: "POST",
