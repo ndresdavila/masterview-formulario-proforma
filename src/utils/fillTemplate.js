@@ -32,8 +32,16 @@ function removeLoopRows(xml) {
     .replace('[[row.measurements]]', '[[/rows]][[measurements]]')
 }
 
+function glue(left, right) {
+  const a = String(left || '').replace(/\s+$/, '')
+  const b = String(right || '').replace(/^\s+/, '')
+  if (!a) return b
+  if (!b) return a
+  return `${a}\n\u00A0\n${b}`
+}
+
 export function prepareRows(rows) {
-  return (rows || []).map((row) => {
+  const prepared = (rows || []).map((row) => {
     const marks = [row.marks_numbers, row.container_numbers].filter(Boolean).join('\n')
     return {
       ...row,
@@ -44,6 +52,14 @@ export function prepareRows(rows) {
       measurements: row.measurements ?? '',
     }
   })
+  if (prepared.length < 2) return prepared
+  const last = prepared[prepared.length - 1]
+  const totalsOnly = !String(last.packages).trim() && !String(last.gross_weight).trim() && !String(last.measurements).trim()
+  if (!totalsOnly) return prepared
+  const prev = { ...prepared[prepared.length - 2] }
+  prev.marks_block = glue(prev.marks_block, last.marks_block)
+  prev.description_block = glue(prev.description_block, last.description_block)
+  return [...prepared.slice(0, -2), prev]
 }
 
 function normalize(value) {

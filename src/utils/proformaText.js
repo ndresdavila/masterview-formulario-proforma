@@ -34,7 +34,8 @@ export function notifyText(notify, second) {
   const main = String(notify || '').trim()
   const extra = String(second || '').trim()
   if (!extra) return main
-  return [main, `Second Notify:\n${extra}`].filter(Boolean).join('\n\n')
+  const gap = '\n\u00A0\n'
+  return [main, `Second Notify:\n${extra}`].filter(Boolean).join(gap)
 }
 
 export function vesselLine(vessel, voyage) {
