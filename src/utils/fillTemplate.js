@@ -23,16 +23,28 @@ function applyPlaceholders(xml, data) {
   return xml.replace(/\[\[([a-zA-Z0-9_.]+)\]\]/g, (_, key) => escapeXml(lookup(data, key)))
 }
 
+function isRowStart(xml, index) {
+  return xml.startsWith('<w:tr>', index) || xml.startsWith('<w:tr ', index)
+}
+
 function takeRow(xml, marker) {
   const at = xml.indexOf(marker)
   if (at < 0) throw new Error(`La plantilla no tiene ${marker}`)
   let start = xml.lastIndexOf('<w:tr', at)
-  while (start >= 0 && xml.startsWith('<w:trP', start)) {
+  while (start >= 0 && !isRowStart(xml, start)) {
     start = xml.lastIndexOf('<w:tr', start - 1)
   }
   if (start < 0) throw new Error(`No se encontró la fila de ${marker}`)
   const end = xml.indexOf('</w:tr>', at) + '</w:tr>'.length
   return { start, end, xml: xml.slice(start, end) }
+}
+
+function uniqueParagraphIds(xml) {
+  let seq = 0xa1000000
+  const next = () => (seq++).toString(16).toUpperCase()
+  return xml
+    .replace(/w14:paraId="[^"]+"/g, () => `w14:paraId="${next()}"`)
+    .replace(/w14:textId="[^"]+"/g, () => `w14:textId="${next()}"`)
 }
 
 function repeatRows(xml, rows) {
@@ -88,6 +100,10 @@ export function fillTemplate(buffer, data) {
   xml = repeatRows(xml, payload.rows)
   xml = applyPlaceholders(xml, payload)
   xml = expandNewlines(xml)
+  xml = uniqueParagraphIds(xml)
   zip.file('word/document.xml', xml)
-  return zip.generate({ type: 'uint8array' })
+  return zip.generate({
+    type: 'uint8array',
+    compression: 'DEFLATE',
+  })
 }
