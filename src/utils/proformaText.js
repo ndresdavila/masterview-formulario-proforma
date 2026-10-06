@@ -9,6 +9,11 @@ function countWord(description) {
   return (found?.[1] || 'BAGS').toUpperCase()
 }
 
+export function sortByContainer(rows) {
+  const key = (row) => String(row?.container || '').trim()
+  return [...rows].sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true, sensitivity: 'base' }))
+}
+
 export function containerMarks(row) {
   const lines = []
   if (String(row.container || '').trim()) lines.push('CONTAINER:', String(row.container).trim())

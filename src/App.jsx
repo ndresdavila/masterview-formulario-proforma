@@ -15,6 +15,7 @@ import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
   containerMarks,
   containerDescription,
+  sortByContainer,
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
@@ -132,7 +133,7 @@ function App() {
     const fileName = `PROFORMA_${formData.booking_number.trim().replace(/[^\w.-]+/g, "_")}.docx`;
 
     // === PREPARE PAYLOAD ===
-    const formattedRows = rows.map((r) => ({
+    const formattedRows = sortByContainer(rows).map((r) => ({
       marks_numbers: containerMarks(r),
       description: containerDescription(r),
       packages: r.packages,
