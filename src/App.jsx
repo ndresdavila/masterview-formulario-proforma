@@ -15,7 +15,6 @@ import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
   containerMarks,
   containerDescription,
-  notifyText,
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
@@ -161,7 +160,7 @@ function App() {
       data: {
         ...formData,
         vessel: vesselLine(formData.vessel, formData.voy_number),
-        notify_party: notifyText(formData.notify_party, formData.second_notify),
+        notify_party: String(formData.notify_party || '').trim(),
         bill_of_lading_number: '',
         place_of_delivery: '',
         freight_payable: '',

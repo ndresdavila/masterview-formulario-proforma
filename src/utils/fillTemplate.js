@@ -62,6 +62,20 @@ export function prepareRows(rows) {
   return [...prepared.slice(0, -2), prev]
 }
 
+function paraId() {
+  return Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, '0')
+}
+
+function addSecondNotify(xml, second) {
+  if (!String(second || '').trim()) return xml
+  const at = xml.indexOf('[[notify_party]]')
+  if (at < 0) return xml
+  const pEnd = xml.indexOf('</w:p>', at) + '</w:p>'.length
+  const label = `<w:p w14:paraId="${paraId()}" w14:textId="77777777" w:rsidR="00D16C2C" w:rsidRDefault="00D16C2C"><w:pPr><w:pStyle w:val="TableParagraph"/><w:pBdr><w:top w:val="single" w:sz="8" w:space="1" w:color="000080"/></w:pBdr><w:spacing w:before="120" w:line="194" w:lineRule="exact"/><w:ind w:left="25"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr><w:t>Second Notify:</w:t></w:r></w:p>`
+  const body = `<w:p w14:paraId="${paraId()}" w14:textId="77777777" w:rsidR="00D16C2C" w:rsidRDefault="00D16C2C" w:rsidP="00915A80"><w:pPr><w:pStyle w:val="TableParagraph"/><w:spacing w:before="8"/><w:ind w:left="25" w:right="918"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr><w:t>[[second_notify_body]]</w:t></w:r></w:p>`
+  return xml.slice(0, pEnd) + label + body + xml.slice(pEnd)
+}
+
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize)
   if (value && typeof value === 'object') {
@@ -76,9 +90,14 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', removeLoopRows(file.asText()))
+  zip.file('word/document.xml', addSecondNotify(removeLoopRows(file.asText()), data.second_notify))
 
-  const payload = normalize({ ...data, rows: prepareRows(data.rows) })
+  const payload = normalize({
+    ...data,
+    notify_party: String(data.notify_party || '').split(/\n+\u00A0?\nSecond Notify:/)[0].trim(),
+    second_notify_body: String(data.second_notify || '').trim(),
+    rows: prepareRows(data.rows),
+  })
   const doc = new Docxtemplater(zip, {
     delimiters: { start: '[[', end: ']]' },
     paragraphLoop: true,
