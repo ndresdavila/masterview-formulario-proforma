@@ -1,5 +1,46 @@
 /* Custom styles for Toastify to override defaults */
 
+.Toastify__progress-bar {
+  display: none !important;
+}
+
+@keyframes toast-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes toast-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes toast-dissolve {
+  0% { opacity: 1; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes toast-clear {
+  from { opacity: 0; }
+  to { opacity: 0; }
+}
+
+.Toastify__toast.toast-fade {
+  animation: toast-dissolve 3.2s linear forwards;
+}
+
+.Toastify__toast.toast-enter {
+  animation: toast-fade-in 0.2s ease both;
+}
+
+.Toastify__toast.toast-exit {
+  animation: toast-fade-out 0.55s ease forwards;
+}
+
+.Toastify__toast.toast-fade.toast-exit {
+  animation: toast-clear 0.15s linear forwards;
+}
+
 /* INFO - Blue */
 .Toastify__toast--info {
   background-color: #cff4fc !important;

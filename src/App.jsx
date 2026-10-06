@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer, cssTransition, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './custom-toast.css';
 import './App.css';
@@ -23,6 +23,29 @@ import { downloadLocalProforma } from './utils/localWord';
 
 const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
 const MAILBOX = "log@masterview.me";
+const STATUS_TOAST = "proforma-status";
+const fadeToast = cssTransition({
+  enter: "toast-enter",
+  exit: "toast-exit",
+  collapseDuration: 180,
+});
+
+function showStatus(message, type, persist = false) {
+  const options = {
+    type,
+    autoClose: persist ? false : 3200,
+    hideProgressBar: true,
+    pauseOnHover: false,
+    pauseOnFocusLoss: false,
+    className: persist ? undefined : "toast-fade",
+    isLoading: false,
+  };
+  if (toast.isActive(STATUS_TOAST)) {
+    toast.update(STATUS_TOAST, { render: message, ...options });
+    return;
+  }
+  toast[type](message, { toastId: STATUS_TOAST, ...options });
+}
 const localWord = import.meta.env.VITE_LOCAL_WORD === "true";
 
 function emptyCargoItem() {
@@ -199,19 +222,19 @@ function App() {
     setIsSubmitting(true);
 
     if (localWord) {
-      toast.info("Generando Proforma...", { autoClose: 2000 });
+      showStatus("Generando Proforma...", "info", true);
       try {
         await downloadLocalProforma({ data: jsonPayload.data, fileName });
-        toast.success("Proforma generada");
+        showStatus("Proforma generada", "success");
       } catch (err) {
         console.error(err);
-        toast.error(err.message || "No se pudo generar la proforma");
+        showStatus(err.message || "No se pudo generar la proforma", "error");
       }
       setIsSubmitting(false);
       return;
     }
 
-    toast.info("Enviando Proforma...", { autoClose: 2000 });
+    showStatus("Enviando Proforma...", "info", true);
     try {
       const res = await fetch(`${API_BASE}/documents/generate_and_send`, {
         method: "POST",
@@ -219,14 +242,14 @@ function App() {
         body: JSON.stringify(jsonPayload),
       });
       if (!res.ok) throw new Error(await readError(res));
-      toast.success("Proforma enviada");
+      showStatus("Proforma enviada", "success");
       setTimeout(() => setIsSubmitting(false), 5000);
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "No se pudo generar la proforma");
+      showStatus(err.message || "No se pudo generar la proforma", "error");
       try {
         await downloadWord();
-        toast.info("El correo falló. Se descargó el Word.");
+        showStatus("El correo falló. Se descargó el Word.", "info");
       } catch (downloadErr) {
         console.error(downloadErr);
       }
@@ -295,7 +318,7 @@ function App() {
           </div>
         </form>
       </div>
-      <ToastContainer position="bottom-right" />
+      <ToastContainer position="bottom-right" hideProgressBar transition={fadeToast} />
     </Layout>
   );
 }
