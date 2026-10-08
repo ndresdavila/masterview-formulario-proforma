@@ -169,7 +169,7 @@ function App() {
 
     const totalsRow = {
       marks_numbers: marksBody ? `MARCAS:\n${marksBody}` : "",
-      description: summaryDescription(cargoSummary, sums),
+      description: summaryDescription(cargoSummary),
       packages: "",
       gross_weight: "",
       net_weight: "",
@@ -193,6 +193,7 @@ function App() {
         rows: finalRows,
         global_marks: globalMarks,
         cargo_summary: cargoSummary,
+        total_containers: formattedRows.length,
         total_packages: sums.packages,
         total_net: sums.net,
         total_gross: sums.gross,

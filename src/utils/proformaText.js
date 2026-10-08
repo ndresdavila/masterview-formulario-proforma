@@ -47,20 +47,6 @@ export function vesselLine(vessel, voyage) {
   return [String(vessel || '').trim(), String(voyage || '').trim()].filter(Boolean).join(' ')
 }
 
-function withoutLeadingCount(summary) {
-  return String(summary || '')
-    .split(/\r?\n/)
-    .map((line) => line.replace(new RegExp(`^\\s*\\d[\\d.,]*\\s+(?=${COUNT_WORD.source}\\b)`, 'i'), ''))
-    .join('\n')
-    .trim()
-}
-
-export function summaryDescription(summary, sums) {
-  const head = [
-    sums?.packages ? `TOTAL BAGS: ${sums.packages}` : '',
-    sums?.net ? `TOTAL NET WEIGHT: ${sums.net}` : '',
-    sums?.gross ? `TOTAL GROSS WEIGHT: ${sums.gross}` : '',
-  ].filter(Boolean)
-  const body = withoutLeadingCount(summary)
-  return [...head, body].filter(Boolean).join('\n')
+export function summaryDescription(summary) {
+  return String(summary || '').trim()
 }

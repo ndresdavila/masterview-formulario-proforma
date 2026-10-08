@@ -172,6 +172,84 @@ function collectRows(xml) {
   return rows
 }
 
+function xmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function rowCells(rowXml) {
+  const starts = []
+  let from = 0
+  while (from < rowXml.length) {
+    const at = rowXml.indexOf('<w:tc', from)
+    if (at < 0) break
+    if (isCellStart(rowXml, at)) starts.push(at)
+    from = at + 4
+  }
+  return starts.map((start, index) => {
+    const end = index + 1 < starts.length ? starts[index + 1] : rowXml.length
+    const cell = rowXml.slice(start, end)
+    const width = Number((cell.match(/<w:tcW w:w="(\d+)"/) || [])[1] || 0)
+    const span = Number((cell.match(/<w:gridSpan w:val="(\d+)"/) || [])[1] || 1)
+    return { width, span }
+  })
+}
+
+function shareWidths(total, weights) {
+  const sum = weights.reduce((acc, weight) => acc + weight, 0) || weights.length
+  let used = 0
+  return weights.map((weight, index) => {
+    if (index === weights.length - 1) return total - used
+    const share = Math.round((total * weight) / sum)
+    used += share
+    return share
+  })
+}
+
+function totalsParagraph(label, value) {
+  const labelProps = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:bCs/><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="334155"/>'
+  const valueProps = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="334155"/>'
+  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/><w:rPr>${labelProps}</w:rPr></w:pPr><w:r><w:rPr>${labelProps}</w:rPr><w:t>${xmlEscape(label)}:</w:t></w:r><w:r><w:rPr>${valueProps}</w:rPr><w:t xml:space="preserve"> ${xmlEscape(value)}</w:t></w:r></w:p>`
+}
+
+function totalsCell(textLabel, textValue, width) {
+  return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="60" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tcMar></w:tcPr>${totalsParagraph(textLabel, textValue)}</w:tc>`
+}
+
+function totalsTable(width, items) {
+  const weights = items.map(([label, value]) => label.length + String(value ?? '').length + 2)
+  const widths = shareWidths(width, weights)
+  const grid = widths.map((cellWidth) => `<w:gridCol w:w="${cellWidth}"/>`).join('')
+  const cells = items.map(([label, value], index) => totalsCell(label, value, widths[index])).join('')
+  const rule = `w:val="${SOFT_RULE.val}" w:sz="${SOFT_RULE.sz}" w:space="0" w:color="${SOFT_RULE.color}"`
+  return `<w:tbl><w:tblPr><w:tblW w:w="${width}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV ${rule}/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${cells}</w:tr></w:tbl>`
+}
+
+function appendTotalsRow(xml, data) {
+  const rows = collectRows(xml)
+  const header = rows.findIndex((row) => xml.slice(row.start, row.end).includes('MARKS AND NUMBERS'))
+  const footer = rows.findIndex((row) => xml.slice(row.start, row.end).includes('B/L TO BE RELEASED'))
+  if (header < 0 || footer < 0 || footer <= header + 1) return xml
+  const sample = xml.slice(rows[header + 1].start, rows[header + 1].end)
+  const cells = rowCells(sample)
+  const width = cells.reduce((sum, cell) => sum + cell.width, 0)
+  const span = cells.reduce((sum, cell) => sum + cell.span, 0)
+  if (!width || !span) return xml
+  const items = [
+    ['TOTAL CONTAINERS', data.total_containers],
+    ['TOTAL BAGS', data.total_packages],
+    ['TOTAL NET WEIGHT', data.total_net],
+    ['TOTAL GROSS WEIGHT', data.total_gross],
+    ['TOTAL MEASUREMENT', data.total_cbm],
+  ]
+  const table = totalsTable(width, items)
+  const row = `<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:gridSpan w:val="${span}"/><w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p></w:tc></w:tr>`
+  const at = rows[footer].start
+  return xml.slice(0, at) + row + xml.slice(at)
+}
+
 function softenCargoDividers(xml) {
   const rows = collectRows(xml)
   const header = rows.findIndex((row) => xml.slice(row.start, row.end).includes('MARKS AND NUMBERS'))
@@ -249,7 +327,10 @@ export function fillTemplate(buffer, data) {
   doc.render(payload)
   const rendered = doc.getZip()
   const renderedXml = rendered.file('word/document.xml')
-  if (renderedXml) rendered.file('word/document.xml', softenCargoDividers(renderedXml.asText()))
+  if (renderedXml) {
+    const withTotals = appendTotalsRow(renderedXml.asText(), payload)
+    rendered.file('word/document.xml', softenCargoDividers(withTotals))
+  }
   return rendered.generate({
     type: 'uint8array',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

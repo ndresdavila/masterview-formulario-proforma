@@ -221,7 +221,7 @@ const DocumentPreview = ({ data }) => {
                             <div className="bl-col bl-pkgs-content">{sums.packages}</div>
                             <div className="bl-col bl-desc-content">
                                 <div style={{ fontSize: '8pt', whiteSpace: 'pre-wrap' }}>
-                                    {summaryDescription(cargoSummary, sums)}
+                                    {summaryDescription(cargoSummary)}
                                 </div>
                             </div>
                             <div className="bl-col bl-gross-content">{sums.gross}</div>
