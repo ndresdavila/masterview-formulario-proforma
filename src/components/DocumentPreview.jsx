@@ -1,7 +1,7 @@
 import React from 'react';
 import './DocumentPreview.css';
 import logoImg from '../assets/logo.png';
-import { summaryDescription, weightLines } from '../utils/proformaText';
+import { containerDescription, summaryDescription } from '../utils/proformaText';
 import { formatWeight } from '../utils/amount';
 
 const DocumentPreview = ({ data }) => {

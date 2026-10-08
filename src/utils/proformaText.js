@@ -1,15 +1,17 @@
 import { readCargoFigures } from './cargoFigures.js'
-import { formatWeight } from './amount.js'
+import { formatWeight, parseAmount } from './amount.js'
 
 const COUNT_WORD =/(?:bags|cajas|boxes|packages|bultos|paquetes)/i
 
-function hasPackageCount(text) {
-  return new RegExp(`\\d[\\d.,]*\\s+${COUNT_WORD.source}\\b`, 'i').test(text)
-}
+const PACKAGE_COUNT = new RegExp(`(^|[^\\w.,])(\\d[\\d.,]*)\\s+(?=${COUNT_WORD.source}\\b)`, 'gi')
 
-function countWord(description) {
-  const found = description.match(new RegExp(`\\b(${COUNT_WORD.source})\\b`, 'i'))
-  return (found?.[1] || 'BAGS').toUpperCase()
+// La cantidad ya va en la columna NO. OF PKGS: "363 BAGS OF COCOA" queda "BAGS OF COCOA".
+// Solo se quita si hay una sola cantidad y coincide con los bultos del contenedor.
+function withoutPackageCount(description, packages) {
+  const counts = [...description.matchAll(PACKAGE_COUNT)]
+  const expected = parseAmount(packages)
+  if (counts.length !== 1 || expected == null || parseAmount(counts[0][2]) !== expected) return description
+  return description.replace(PACKAGE_COUNT, '$1').replace(/^[ \t]+/gm, '')
 }
 
 export function sortByContainer(rows) {
@@ -25,12 +27,8 @@ export function containerMarks(row) {
 }
 
 export function containerDescription(row) {
-  const description = String(row.description || '').trim()
-  const packages = String(row.packages || '').trim()
-  const goods = hasPackageCount(description) || !packages
-    ? description
-    : `${packages} ${countWord(description)}${description ? `\n${description}` : ''}`
-  return [goods, ...weightLines(row)].filter(Boolean).join('\n')
+  const description = withoutPackageCount(String(row.description || '').trim(), row.packages)
+  return [description, ...weightLines(row)].filter(Boolean).join('\n')
 }
 
 // Los pesos que ya vienen escritos en la descripción no se repiten debajo.
