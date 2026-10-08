@@ -292,7 +292,7 @@ function App() {
 
           <PortDetails formData={formData} onChange={handleInputChange} />
 
-          <h6 className="mt-4 mb-2 text-secondary text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>Cargo Particulars</h6>
+          <h6 className="mt-4 mb-2 text-secondary text-uppercase fw-bold" style={{ fontSize: '0.85rem' }}>Particulars furnished by shipper</h6>
           <DynamicRows rows={rows} setRows={setRows} addRow={addRow} />
 
           <hr className="my-3 text-secondary opacity-25" />
