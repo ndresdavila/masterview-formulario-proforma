@@ -112,25 +112,34 @@ function fillRowAfter(xml, label, tagsByIndex, { dropHeight = false } = {}) {
   return xml.slice(0, span.start) + row + xml.slice(span.end)
 }
 
-function fillLabelCell(xml, label, tag) {
+function fillBelowMerge(xml, label, tag) {
   const at = xml.indexOf(label)
   if (at < 0) throw new Error(`La plantilla no tiene ${label}`)
-  let start = xml.lastIndexOf('<w:tc', at)
-  while (start >= 0 && !isCellStart(xml, start)) start = xml.lastIndexOf('<w:tc', start - 1)
-  const nextCell = xml.indexOf('<w:tc', at)
-  const rowEnd = xml.indexOf('</w:tr>', at)
-  let end = rowEnd
-  if (nextCell >= 0 && nextCell < rowEnd && isCellStart(xml, nextCell)) end = nextCell
-  const cell = appendParagraph(xml.slice(start, end), tag)
-  return xml.slice(0, start) + cell + xml.slice(end)
+  let after = xml.indexOf('</w:tr>', at) + '</w:tr>'.length
+  for (let i = 0; i < 6; i += 1) {
+    let start = xml.indexOf('<w:tr', after)
+    while (start >= 0 && !isRowStart(xml, start)) start = xml.indexOf('<w:tr', start + 4)
+    if (start < 0) break
+    const end = xml.indexOf('</w:tr>', start) + '</w:tr>'.length
+    const row = xml.slice(start, end)
+    const firstCellEnd = row.indexOf('</w:tc>')
+    const firstCell = row.slice(0, firstCellEnd)
+    const continued = firstCell.includes('<w:vMerge/>') || firstCell.includes('<w:vMerge />')
+    if (!continued) {
+      const filled = mapCells(row, { 0: tag })
+      return xml.slice(0, start) + filled + xml.slice(end)
+    }
+    after = end
+  }
+  throw new Error(`No hay celda de valor para ${label}`)
 }
 
 function placeFields(xml) {
-  let out = fillLabelCell(xml, 'BOOKING NUMBER', '[[booking_number]]')
-  out = fillRowAfter(out, 'SHIPPER/EXPORT', {
+  let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
+    1: '[[booking_number]]',
   })
-  out = fillLabelCell(out, 'To Order of Shipper', '[[consignee]]')
+  out = fillBelowMerge(out, 'To Order of Shipper', '[[consignee]]')
   out = fillRowAfter(out, 'NOTIFY PARTY', {
     0: '[[notify_party]]',
     1: '[[second_notify]]',
