@@ -1,4 +1,5 @@
 import { readCargoFigures } from './cargoFigures.js'
+import { formatWeight } from './amount.js'
 
 const COUNT_WORD =/(?:bags|cajas|boxes|packages|bultos|paquetes)/i
 
@@ -35,8 +36,8 @@ export function containerDescription(row) {
 // Los pesos que ya vienen escritos en la descripción no se repiten debajo.
 export function weightLines(row) {
   const written = readCargoFigures(row.description)
-  const net = String(row.netWeight || '').trim()
-  const gross = String(row.grossWeight || '').trim()
+  const net = formatWeight(row.netWeight)
+  const gross = formatWeight(row.grossWeight)
   const lines = []
   if (net && written.netWeight == null) lines.push(`NET WEIGHT: ${net}`)
   if (gross && written.grossWeight == null) lines.push(`GROSS WEIGHT: ${gross}`)

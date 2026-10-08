@@ -2,6 +2,7 @@ import React from 'react';
 import './DocumentPreview.css';
 import logoImg from '../assets/logo.png';
 import { summaryDescription, weightLines } from '../utils/proformaText';
+import { formatWeight } from '../utils/amount';
 
 const DocumentPreview = ({ data }) => {
     const containerRef = React.useRef(null);
@@ -200,7 +201,7 @@ const DocumentPreview = ({ data }) => {
                                     {row.description}
                                     {weightLines(row).map((line) => `\n${line}`).join('')}
                                 </div>
-                                <div className="bl-col bl-gross-content">{row.grossWeight}</div>
+                                <div className="bl-col bl-gross-content">{formatWeight(row.grossWeight)}</div>
                                 <div className="bl-col bl-meas-content">{row.measurements}</div>
                             </div>
                         ))}

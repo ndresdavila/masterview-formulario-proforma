@@ -31,3 +31,10 @@ export function formatAmount(n) {
     maximumFractionDigits: 2,
   })
 }
+
+// Los pesos siempre van con dos decimales: 24978 → 24,978.00. Lo que no se puede leer se deja igual.
+export function formatWeight(raw) {
+  const n = typeof raw === 'number' ? raw : parseAmount(raw)
+  if (n == null || !Number.isFinite(n)) return String(raw ?? '').trim()
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}

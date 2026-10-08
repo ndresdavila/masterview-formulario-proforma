@@ -10,7 +10,7 @@ import PartyDetails from './components/PartyDetails';
 import PortDetails from './components/PortDetails';
 import DynamicRows from './components/DynamicRows';
 import TotalsSection from './components/TotalsSection';
-import { formatAmount, parseAmount } from './utils/amount';
+import { formatAmount, formatWeight, parseAmount } from './utils/amount';
 import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
   containerMarks,
@@ -87,8 +87,8 @@ function App() {
     const any = (field) => rows.some((row) => parseAmount(row[field]) != null);
     return {
       packages: formatAmount(add('packages')),
-      net: any('netWeight') ? formatAmount(add('netWeight')) : '',
-      gross: any('grossWeight') ? formatAmount(add('grossWeight')) : '',
+      net: any('netWeight') ? formatWeight(add('netWeight')) : '',
+      gross: any('grossWeight') ? formatWeight(add('grossWeight')) : '',
       cbm: any('measurements') ? formatAmount(add('measurements')) : '',
     };
   }, [rows]);
@@ -160,8 +160,8 @@ function App() {
       marks_numbers: containerMarks(r),
       description: containerDescription(r),
       packages: r.packages,
-      gross_weight: r.grossWeight,
-      net_weight: r.netWeight,
+      gross_weight: formatWeight(r.grossWeight),
+      net_weight: formatWeight(r.netWeight),
       measurements: r.measurements,
     }));
 
