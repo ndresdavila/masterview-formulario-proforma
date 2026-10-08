@@ -13,16 +13,10 @@ function paraId() {
   return Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, '0')
 }
 
-function glue(left, right) {
-  const a = String(left || '').replace(/\s+$/, '')
-  const b = String(right || '').replace(/^\s+/, '')
-  if (!a) return b
-  if (!b) return a
-  return `${a}\n\u00A0\n${b}`
-}
+const SOFT_RULE = { val: 'dotted', sz: '6', color: 'A6A6A6' }
 
 export function prepareRows(rows) {
-  const prepared = (rows || []).map((row) => {
+  return (rows || []).map((row) => {
     const marks = [row.marks_numbers, row.container_numbers].filter(Boolean).join('\n')
     return {
       ...row,
@@ -33,14 +27,6 @@ export function prepareRows(rows) {
       measurements: row.measurements ?? '',
     }
   })
-  if (prepared.length < 2) return prepared
-  const last = prepared[prepared.length - 1]
-  const totalsOnly = !String(last.packages).trim() && !String(last.gross_weight).trim() && !String(last.measurements).trim()
-  if (!totalsOnly) return prepared
-  const prev = { ...prepared[prepared.length - 2] }
-  prev.marks_block = glue(prev.marks_block, last.marks_block)
-  prev.description_block = glue(prev.description_block, last.description_block)
-  return [...prepared.slice(0, -2), prev]
 }
 
 function runXml(rPr, tag) {
@@ -134,6 +120,77 @@ function fillBelowMerge(xml, label, tag) {
   throw new Error(`No hay celda de valor para ${label}`)
 }
 
+function borderTag(edge) {
+  return `<w:${edge} w:val="${SOFT_RULE.val}" w:sz="${SOFT_RULE.sz}" w:space="0" w:color="${SOFT_RULE.color}"/>`
+}
+
+function setCellEdge(cell, edge) {
+  const tag = borderTag(edge)
+  const existing = new RegExp(`<w:${edge}\\b[^/]*/>`)
+  if (existing.test(cell)) return cell.replace(existing, tag)
+  if (cell.includes('<w:tcBorders>')) return cell.replace('<w:tcBorders>', `<w:tcBorders>${tag}`)
+  const block = `<w:tcBorders>${tag}</w:tcBorders>`
+  const close = cell.indexOf('</w:tcPr>')
+  if (close >= 0) return cell.slice(0, close) + block + cell.slice(close)
+  const open = cell.indexOf('>') + 1
+  return `${cell.slice(0, open)}<w:tcPr>${block}</w:tcPr>${cell.slice(open)}`
+}
+
+function paintEdge(rowXml, edge) {
+  const starts = []
+  let from = 0
+  while (from < rowXml.length) {
+    const at = rowXml.indexOf('<w:tc', from)
+    if (at < 0) break
+    if (isCellStart(rowXml, at)) starts.push(at)
+    from = at + 4
+  }
+  if (!starts.length) return rowXml
+  let out = rowXml.slice(0, starts[0])
+  for (let i = 0; i < starts.length; i += 1) {
+    const end = i + 1 < starts.length ? starts[i + 1] : rowXml.length
+    out += setCellEdge(rowXml.slice(starts[i], end), edge)
+  }
+  return out
+}
+
+function collectRows(xml) {
+  const rows = []
+  let from = 0
+  while (from < xml.length) {
+    const start = xml.indexOf('<w:tr', from)
+    if (start < 0) break
+    if (!isRowStart(xml, start)) {
+      from = start + 4
+      continue
+    }
+    const end = xml.indexOf('</w:tr>', start)
+    if (end < 0) break
+    rows.push({ start, end: end + '</w:tr>'.length })
+    from = end + '</w:tr>'.length
+  }
+  return rows
+}
+
+function softenCargoDividers(xml) {
+  const rows = collectRows(xml)
+  const header = rows.findIndex((row) => xml.slice(row.start, row.end).includes('MARKS AND NUMBERS'))
+  const footer = rows.findIndex((row) => xml.slice(row.start, row.end).includes('B/L TO BE RELEASED'))
+  if (header < 0 || footer < 0 || footer - header < 3) return xml
+  const pieces = rows.map((row) => xml.slice(row.start, row.end))
+  for (let i = header + 1; i < footer - 1; i += 1) {
+    pieces[i] = paintEdge(pieces[i], 'bottom')
+    pieces[i + 1] = paintEdge(pieces[i + 1], 'top')
+  }
+  let built = ''
+  let cursor = 0
+  for (let i = 0; i < rows.length; i += 1) {
+    built += xml.slice(cursor, rows[i].start) + pieces[i]
+    cursor = rows[i].end
+  }
+  return built + xml.slice(cursor)
+}
+
 function placeFields(xml) {
   let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
@@ -190,7 +247,10 @@ export function fillTemplate(buffer, data) {
     nullGetter: () => '',
   })
   doc.render(payload)
-  return doc.getZip().generate({
+  const rendered = doc.getZip()
+  const renderedXml = rendered.file('word/document.xml')
+  if (renderedXml) rendered.file('word/document.xml', softenCargoDividers(renderedXml.asText()))
+  return rendered.generate({
     type: 'uint8array',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     compression: 'DEFLATE',
