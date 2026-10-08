@@ -39,7 +39,7 @@ export default function TotalsSection({
             <div className="party-block mb-3">
                 <div className="summary-split">
                     <div>
-                        <label className="totals-caption">Marks and Numbers<span className="req-star">*</span></label>
+                        <label className="totals-caption">Marks and Numbers <span className="opt-tag">(Opcional)</span></label>
                         <AutoTextarea
                             className="form-control"
                             rows="8"

@@ -135,7 +135,6 @@ function App() {
       if (parseAmount(r.measurements) == null) return toast.error(`Contenedor ${i + 1}: measurement no es válido.`);
     }
 
-    if (!globalMarks.trim()) return toast.error('Marks and Numbers es requerido.');
     if (!cargoSummary.trim()) return toast.error('La descripción del resumen es requerida.');
 
     const found = readSummaryFigures(cargoSummary);
