@@ -59,7 +59,11 @@ function appendParagraph(cellXml, tag) {
   const end = cellXml.lastIndexOf('</w:p>')
   if (end < 0) return fillEmptyParagraph(cellXml, tag)
   const pPr = (cellXml.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0]
-  const rPr = (pPr.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0]
+  let rPr = (pPr.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0]
+  rPr = rPr
+    .replace(/<w:color[^/]*\/>/g, '')
+    .replace(/<w:sz w:val="\d+"\/>/, '<w:sz w:val="20"/>')
+    .replace(/<w:szCs w:val="\d+"\/>/, '<w:szCs w:val="20"/>')
   const paragraph = `<w:p w14:paraId="${paraId()}" w14:textId="77777777">${pPr}${runXml(rPr, tag)}</w:p>`
   return cellXml.slice(0, end + '</w:p>'.length) + paragraph + cellXml.slice(end + '</w:p>'.length)
 }
@@ -122,9 +126,9 @@ function fillLabelCell(xml, label, tag) {
 }
 
 function placeFields(xml) {
-  let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
+  let out = fillLabelCell(xml, 'BOOKING NUMBER', '[[booking_number]]')
+  out = fillRowAfter(out, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
-    1: '[[booking_number]]',
   })
   out = fillLabelCell(out, 'To Order of Shipper', '[[consignee]]')
   out = fillRowAfter(out, 'NOTIFY PARTY', {
