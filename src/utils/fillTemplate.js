@@ -5,31 +5,12 @@ function isRowStart(xml, index) {
   return xml.startsWith('<w:tr>', index) || xml.startsWith('<w:tr ', index)
 }
 
-function takeRow(xml, marker) {
-  const at = xml.indexOf(marker)
-  if (at < 0) throw new Error(`La plantilla no tiene ${marker}`)
-  let start = xml.lastIndexOf('<w:tr', at)
-  while (start >= 0 && !isRowStart(xml, start)) {
-    start = xml.lastIndexOf('<w:tr', start - 1)
-  }
-  if (start < 0) throw new Error(`No se encontró la fila de ${marker}`)
-  const end = xml.indexOf('</w:tr>', at) + '</w:tr>'.length
-  return { start, end }
+function isCellStart(xml, index) {
+  return xml.startsWith('<w:tc>', index) || xml.startsWith('<w:tc ', index)
 }
 
-function removeLoopRows(xml) {
-  const spans = [takeRow(xml, '{%tr for row in rows %}'), takeRow(xml, '{%tr endfor %}')]
-    .sort((a, b) => b.start - a.start)
-  let out = xml
-  for (const span of spans) {
-    out = out.slice(0, span.start) + out.slice(span.end)
-  }
-  return out
-    .replace('[[row.marks_block]]', '[[#rows]][[marks_block]]')
-    .replace('[[row.packages]]', '[[packages]]')
-    .replace('[[row.description_block]]', '[[description_block]]')
-    .replace('[[row.gross_weight]]', '[[gross_weight]]')
-    .replace('[[row.measurements]]', '[[/rows]][[measurements]]')
+function paraId() {
+  return Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, '0')
 }
 
 function glue(left, right) {
@@ -62,18 +43,109 @@ export function prepareRows(rows) {
   return [...prepared.slice(0, -2), prev]
 }
 
-function paraId() {
-  return Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, '0')
+function runXml(rPr, tag) {
+  const props = (rPr || '').replace(/<w:b\/>|<w:bCs\/>/g, '')
+  return `<w:r>${props}<w:t>${tag}</w:t></w:r>`
 }
 
-function addSecondNotify(xml, second) {
-  if (!String(second || '').trim()) return xml
-  const at = xml.indexOf('[[notify_party]]')
-  if (at < 0) return xml
-  const pEnd = xml.indexOf('</w:p>', at) + '</w:p>'.length
-  const label = `<w:p w14:paraId="${paraId()}" w14:textId="77777777" w:rsidR="00D16C2C" w:rsidRDefault="00D16C2C"><w:pPr><w:pStyle w:val="TableParagraph"/><w:pBdr><w:top w:val="single" w:sz="8" w:space="1" w:color="000080"/></w:pBdr><w:spacing w:before="120" w:line="194" w:lineRule="exact"/><w:ind w:left="25"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:sz w:val="17"/><w:szCs w:val="17"/></w:rPr><w:t>Second Notify:</w:t></w:r></w:p>`
-  const body = `<w:p w14:paraId="${paraId()}" w14:textId="77777777" w:rsidR="00D16C2C" w:rsidRDefault="00D16C2C" w:rsidP="00915A80"><w:pPr><w:pStyle w:val="TableParagraph"/><w:spacing w:before="8"/><w:ind w:left="25" w:right="918"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/></w:rPr><w:t>[[second_notify_body]]</w:t></w:r></w:p>`
-  return xml.slice(0, pEnd) + label + body + xml.slice(pEnd)
+function fillEmptyParagraph(cellXml, tag) {
+  const end = cellXml.indexOf('</w:p>')
+  if (end < 0) return cellXml
+  const rPr = (cellXml.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0]
+  return cellXml.slice(0, end) + runXml(rPr, tag) + cellXml.slice(end)
+}
+
+function appendParagraph(cellXml, tag) {
+  const end = cellXml.lastIndexOf('</w:p>')
+  if (end < 0) return fillEmptyParagraph(cellXml, tag)
+  const pPr = (cellXml.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0]
+  const rPr = (pPr.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0]
+  const paragraph = `<w:p w14:paraId="${paraId()}" w14:textId="77777777">${pPr}${runXml(rPr, tag)}</w:p>`
+  return cellXml.slice(0, end + '</w:p>'.length) + paragraph + cellXml.slice(end + '</w:p>'.length)
+}
+
+function cellText(cellXml) {
+  return cellXml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function mapCells(rowXml, tagsByIndex) {
+  const starts = []
+  let from = 0
+  while (from < rowXml.length) {
+    const at = rowXml.indexOf('<w:tc', from)
+    if (at < 0) break
+    if (isCellStart(rowXml, at)) starts.push(at)
+    from = at + 4
+  }
+  if (!starts.length) return rowXml
+  let out = rowXml.slice(0, starts[0])
+  for (let i = 0; i < starts.length; i += 1) {
+    const end = i + 1 < starts.length ? starts[i + 1] : rowXml.length
+    let cell = rowXml.slice(starts[i], end)
+    const tag = tagsByIndex[i]
+    if (tag) cell = cellText(cell) ? appendParagraph(cell, tag) : fillEmptyParagraph(cell, tag)
+    out += cell
+  }
+  return out
+}
+
+function rowAfter(xml, label) {
+  const at = xml.indexOf(label)
+  if (at < 0) throw new Error(`La plantilla no tiene ${label}`)
+  const after = xml.indexOf('</w:tr>', at) + '</w:tr>'.length
+  let start = xml.indexOf('<w:tr', after)
+  while (start >= 0 && !isRowStart(xml, start)) start = xml.indexOf('<w:tr', start + 4)
+  if (start < 0) throw new Error(`No hay fila de valores para ${label}`)
+  const end = xml.indexOf('</w:tr>', start) + '</w:tr>'.length
+  return { start, end }
+}
+
+function fillRowAfter(xml, label, tagsByIndex, { dropHeight = false } = {}) {
+  const span = rowAfter(xml, label)
+  let row = xml.slice(span.start, span.end)
+  if (dropHeight) row = row.replace(/<w:trHeight[^/]*\/>/, '')
+  row = mapCells(row, tagsByIndex)
+  return xml.slice(0, span.start) + row + xml.slice(span.end)
+}
+
+function fillLabelCell(xml, label, tag) {
+  const at = xml.indexOf(label)
+  if (at < 0) throw new Error(`La plantilla no tiene ${label}`)
+  let start = xml.lastIndexOf('<w:tc', at)
+  while (start >= 0 && !isCellStart(xml, start)) start = xml.lastIndexOf('<w:tc', start - 1)
+  const nextCell = xml.indexOf('<w:tc', at)
+  const rowEnd = xml.indexOf('</w:tr>', at)
+  let end = rowEnd
+  if (nextCell >= 0 && nextCell < rowEnd && isCellStart(xml, nextCell)) end = nextCell
+  const cell = appendParagraph(xml.slice(start, end), tag)
+  return xml.slice(0, start) + cell + xml.slice(end)
+}
+
+function placeFields(xml) {
+  let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
+    0: '[[shipper]]',
+    1: '[[booking_number]]',
+  })
+  out = fillLabelCell(out, 'To Order of Shipper', '[[consignee]]')
+  out = fillRowAfter(out, 'NOTIFY PARTY', {
+    0: '[[notify_party]]',
+    1: '[[second_notify]]',
+  })
+  out = fillRowAfter(out, 'VESSEL', {
+    0: '[[vessel]]',
+    1: '[[port_of_loading]]',
+  })
+  out = fillRowAfter(out, 'PORT OF DISCHARGE', {
+    0: '[[port_of_discharge]]',
+  })
+  out = fillRowAfter(out, 'MARKS AND NUMBERS', {
+    0: '[[#rows]][[marks_block]]',
+    1: '[[packages]]',
+    2: '[[description_block]]',
+    3: '[[gross_weight]]',
+    4: '[[measurements]][[/rows]]',
+  }, { dropHeight: true })
+  return out
 }
 
 function normalize(value) {
@@ -90,12 +162,12 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', addSecondNotify(removeLoopRows(file.asText()), data.second_notify))
+  zip.file('word/document.xml', placeFields(file.asText()))
 
   const payload = normalize({
     ...data,
-    notify_party: String(data.notify_party || '').split(/\n+\u00A0?\nSecond Notify:/)[0].trim(),
-    second_notify_body: String(data.second_notify || '').trim(),
+    notify_party: String(data.notify_party || '').trim(),
+    second_notify: String(data.second_notify || '').trim(),
     rows: prepareRows(data.rows),
   })
   const doc = new Docxtemplater(zip, {
