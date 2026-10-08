@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import AutoTextarea from './AutoTextarea';
+import { cargoFieldsFromDescription } from '../utils/cargoFigures';
 import './DynamicRows.css';
 
 export default function DynamicRows({ rows, setRows, addRow }) {
@@ -17,6 +18,20 @@ export default function DynamicRows({ rows, setRows, addRow }) {
     const next = [...rows];
     next[index] = { ...next[index], [field]: value };
     setRows(next);
+  };
+
+  // Rellena bultos, pesos y measurement con lo que el cliente ya escribió en la
+  // descripción, sin pisar un valor que el usuario haya cambiado a mano.
+  const handleDescriptionChange = (index, description) => {
+    const row = rows[index];
+    const found = cargoFieldsFromDescription(description);
+    const previous = row.autoFilled || {};
+    const next = { ...row, description, autoFilled: found };
+    for (const field of Object.keys(found)) {
+      const current = String(row[field] ?? '');
+      if (!current.trim() || current === previous[field]) next[field] = found[field];
+    }
+    setRows(rows.map((r, i) => (i === index ? next : r)));
   };
 
   const handleNumericChange = (e, index, field) => {
@@ -80,7 +95,7 @@ export default function DynamicRows({ rows, setRows, addRow }) {
               placeholder="Descripción..."
               style={{ resize: 'none' }}
               value={row.description}
-              onChange={(e) => updateField(index, 'description', e.target.value)}
+              onChange={(e) => handleDescriptionChange(index, e.target.value)}
             />
           </div>
 

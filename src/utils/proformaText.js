@@ -1,4 +1,6 @@
-const COUNT_WORD = /(?:bags|cajas|boxes|packages|bultos|paquetes)/i
+import { readCargoFigures } from './cargoFigures.js'
+
+const COUNT_WORD =/(?:bags|cajas|boxes|packages|bultos|paquetes)/i
 
 function hasPackageCount(text) {
   return new RegExp(`\\d[\\d.,]*\\s+${COUNT_WORD.source}\\b`, 'i').test(text)
@@ -27,12 +29,18 @@ export function containerDescription(row) {
   const goods = hasPackageCount(description) || !packages
     ? description
     : `${packages} ${countWord(description)}${description ? `\n${description}` : ''}`
-  const lines = [goods]
+  return [goods, ...weightLines(row)].filter(Boolean).join('\n')
+}
+
+// Los pesos que ya vienen escritos en la descripción no se repiten debajo.
+export function weightLines(row) {
+  const written = readCargoFigures(row.description)
   const net = String(row.netWeight || '').trim()
   const gross = String(row.grossWeight || '').trim()
-  if (net) lines.push(`NET WEIGHT: ${net}`)
-  if (gross) lines.push(`GROSS WEIGHT: ${gross}`)
-  return lines.filter(Boolean).join('\n')
+  const lines = []
+  if (net && written.netWeight == null) lines.push(`NET WEIGHT: ${net}`)
+  if (gross && written.grossWeight == null) lines.push(`GROSS WEIGHT: ${gross}`)
+  return lines
 }
 
 export function notifyText(notify, second) {
