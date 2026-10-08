@@ -4,11 +4,11 @@ import './DynamicRows.css';
 
 export default function DynamicRows({ rows, setRows, addRow }) {
   const previousCount = useRef(rows.length);
-  const latestCard = useRef(null);
+  const addButton = useRef(null);
 
   useEffect(() => {
     if (rows.length > previousCount.current) {
-      latestCard.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      addButton.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     previousCount.current = rows.length;
   }, [rows.length]);
@@ -30,17 +30,10 @@ export default function DynamicRows({ rows, setRows, addRow }) {
 
   return (
     <>
-      <div className="d-flex justify-content-end mb-2">
-        <button type="button" className="btn btn-sm cargo-add-btn" onClick={addRow}>
-          <i className="bi bi-plus-circle me-1"></i> Agregar contenedor
-        </button>
-      </div>
-
       {rows.map((row, index) => (
         <div
           key={row.id || index}
           className="party-block cargo-item mb-3"
-          ref={index === rows.length - 1 ? latestCard : null}
         >
           <div className="d-flex justify-content-between align-items-center mb-2">
             <span className="cargo-item-title">Contenedor {index + 1}</span>
@@ -139,6 +132,12 @@ export default function DynamicRows({ rows, setRows, addRow }) {
           </div>
         </div>
       ))}
+
+      <div className="d-flex justify-content-end mb-3">
+        <button ref={addButton} type="button" className="btn btn-sm cargo-add-btn" onClick={addRow}>
+          <i className="bi bi-plus-circle me-1"></i> Agregar contenedor
+        </button>
+      </div>
     </>
   );
 }
