@@ -120,36 +120,59 @@ function fillBelowMerge(xml, label, tag) {
   throw new Error(`No hay celda de valor para ${label}`)
 }
 
-function borderTag(edge) {
+function borderTag(edge, clear = false) {
+  if (clear) return `<w:${edge} w:val="nil"/>`
   return `<w:${edge} w:val="${SOFT_RULE.val}" w:sz="${SOFT_RULE.sz}" w:space="0" w:color="${SOFT_RULE.color}"/>`
 }
 
-function setCellEdge(cell, edge) {
-  const tag = borderTag(edge)
+function setCellEdge(cell, edge, clear = false) {
+  const tag = borderTag(edge, clear)
   const existing = new RegExp(`<w:${edge}\\b[^/]*/>`)
   if (existing.test(cell)) return cell.replace(existing, tag)
   if (cell.includes('<w:tcBorders>')) return cell.replace('<w:tcBorders>', `<w:tcBorders>${tag}`)
   const block = `<w:tcBorders>${tag}</w:tcBorders>`
-  const close = cell.indexOf('</w:tcPr>')
-  if (close >= 0) return cell.slice(0, close) + block + cell.slice(close)
+  const anchor = cell.match(/<w:gridSpan[^/]*\/>/) || cell.match(/<w:tcW[^/]*\/>/)
+  if (anchor) {
+    const at = cell.indexOf(anchor[0]) + anchor[0].length
+    return cell.slice(0, at) + block + cell.slice(at)
+  }
   const open = cell.indexOf('>') + 1
   return `${cell.slice(0, open)}<w:tcPr>${block}</w:tcPr>${cell.slice(open)}`
 }
 
-function paintEdge(rowXml, edge) {
+function directCellStarts(rowXml) {
   const starts = []
   let from = 0
+  let tables = 0
   while (from < rowXml.length) {
-    const at = rowXml.indexOf('<w:tc', from)
-    if (at < 0) break
-    if (isCellStart(rowXml, at)) starts.push(at)
-    from = at + 4
+    const cellAt = rowXml.indexOf('<w:tc', from)
+    const openAt = rowXml.indexOf('<w:tbl>', from)
+    const closeAt = rowXml.indexOf('</w:tbl>', from)
+    const next = [cellAt, openAt, closeAt].filter((at) => at >= 0).sort((a, b) => a - b)[0]
+    if (next == null) break
+    if (next === openAt) {
+      tables += 1
+      from = openAt + 7
+      continue
+    }
+    if (next === closeAt) {
+      tables = Math.max(0, tables - 1)
+      from = closeAt + 8
+      continue
+    }
+    if (tables === 0 && isCellStart(rowXml, cellAt)) starts.push(cellAt)
+    from = cellAt + 4
   }
+  return starts
+}
+
+function paintEdge(rowXml, edge, clear = false) {
+  const starts = directCellStarts(rowXml)
   if (!starts.length) return rowXml
   let out = rowXml.slice(0, starts[0])
   for (let i = 0; i < starts.length; i += 1) {
     const end = i + 1 < starts.length ? starts[i + 1] : rowXml.length
-    out += setCellEdge(rowXml.slice(starts[i], end), edge)
+    out += setCellEdge(rowXml.slice(starts[i], end), edge, clear)
   }
   return out
 }
@@ -245,7 +268,7 @@ function appendTotalsRow(xml, data) {
     ['TOTAL MEASUREMENT', data.total_cbm],
   ]
   const table = totalsTable(width, items)
-  const row = `<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:gridSpan w:val="${span}"/><w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p></w:tc></w:tr>`
+  const row = `<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:gridSpan w:val="${span}"/>${`<w:tcBorders>${borderTag('top')}</w:tcBorders>`}<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p></w:tc></w:tr>`
   const at = rows[footer].start
   return xml.slice(0, at) + row + xml.slice(at)
 }
@@ -257,8 +280,9 @@ function softenCargoDividers(xml) {
   if (header < 0 || footer < 0 || footer - header < 3) return xml
   const pieces = rows.map((row) => xml.slice(row.start, row.end))
   for (let i = header + 1; i < footer - 1; i += 1) {
-    pieces[i] = paintEdge(pieces[i], 'bottom')
-    pieces[i + 1] = paintEdge(pieces[i + 1], 'top')
+    const aboveTotals = pieces[i + 1].includes('TOTAL CONTAINERS')
+    pieces[i] = paintEdge(pieces[i], 'bottom', aboveTotals)
+    if (!aboveTotals) pieces[i + 1] = paintEdge(pieces[i + 1], 'top')
   }
   let built = ''
   let cursor = 0
