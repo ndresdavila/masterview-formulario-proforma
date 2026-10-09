@@ -93,7 +93,8 @@ function rowAfter(xml, label) {
 function fillRowAfter(xml, label, tagsByIndex, { dropHeight = false } = {}) {
   const span = rowAfter(xml, label)
   let row = xml.slice(span.start, span.end)
-  if (dropHeight) row = row.replace(/<w:trHeight[^/]*\/>/, '')
+  // Sin alto fijo, y cada contenedor entero en una página: Word no parte la fila entre hojas.
+  if (dropHeight) row = row.replace(/<w:trHeight[^/]*\/>/, '<w:cantSplit/>')
   row = mapCells(row, tagsByIndex)
   return xml.slice(0, span.start) + row + xml.slice(span.end)
 }
@@ -293,6 +294,93 @@ function softenCargoDividers(xml) {
   return built + xml.slice(cursor)
 }
 
+// La plantilla trae 0,42 cm arriba y 0,44 cm abajo: con varios contenedores la tabla
+// llega al borde de la hoja. En twips (567 = 1 cm).
+const PAGE_MARGIN = { top: 567, bottom: 851 }
+
+// Word exige un párrafo después de la tabla. Con su alto normal, cuando la tabla llena la hoja
+// ese párrafo vacío cae solo en una página en blanco; se deja de una línea mínima.
+const TAIL_PARAGRAPH = '<w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr>'
+
+function pageMargins(xml) {
+  const withMargins = xml.replace(/<w:pgMar\b[^>]*\/>/g, (tag) => tag
+    .replace(/w:top="\d+"/, `w:top="${PAGE_MARGIN.top}"`)
+    .replace(/w:bottom="\d+"/, `w:bottom="${PAGE_MARGIN.bottom}"`))
+  return withMargins.replace(
+    /(<\/w:tbl>\s*<w:p\b[^>]*>)(?:<w:pPr>[\s\S]*?<\/w:pPr>)?(<\/w:p>\s*<w:sectPr\b)/,
+    `$1${TAIL_PARAGRAPH}$2`,
+  )
+}
+
+// GROSS WEIGHT mide 936 twips y "25,228.50" se parte en dos líneas. La última columna de la
+// cuadrícula (MEASUREMENT, que solo lleva números cortos) se divide en dos: la parte izquierda
+// se suma a GROSS WEIGHT en las filas de carga y en las demás filas la celda abarca ambas,
+// así el encabezado (BOOKING / BILL OF LADING) no se mueve.
+const GROSS_WEIGHT_WIDTH = 1500
+
+function rowBounds(rowXml) {
+  let col = 0
+  return directCellStarts(rowXml).map((start, index, starts) => {
+    const end = index + 1 < starts.length ? starts[index + 1] : rowXml.length
+    const span = Number((rowXml.slice(start, end).match(/<w:gridSpan w:val="(\d+)"/) || [])[1] || 1)
+    col += span
+    return { start, end, span, last: col }
+  })
+}
+
+function setCellSpan(cellXml, span, width) {
+  let cell = cellXml
+  if (width != null) cell = cell.replace(/<w:tcW w:w="\d+"/, `<w:tcW w:w="${width}"`)
+  if (/<w:gridSpan w:val="\d+"\/>/.test(cell)) return cell.replace(/<w:gridSpan w:val="\d+"\/>/, `<w:gridSpan w:val="${span}"/>`)
+  return cell.replace(/(<w:tcW[^>]*\/>)/, `$1<w:gridSpan w:val="${span}"/>`)
+}
+
+function widenGrossWeight(xml) {
+  const grid = xml.match(/<w:tblGrid>([\s\S]*?)<\/w:tblGrid>/)
+  if (!grid) return xml
+  const cols = [...grid[1].matchAll(/<w:gridCol w:w="(\d+)"\/>/g)].map((m) => Number(m[1]))
+  const total = cols.length
+  const grossCol = total - 1
+  const extra = GROSS_WEIGHT_WIDTH - cols[grossCol - 1]
+  if (total < 3 || extra <= 0 || cols[total - 1] - extra < 1200) return xml
+
+  const newGrid = [...cols.slice(0, -1), extra, cols[total - 1] - extra]
+    .map((w) => `<w:gridCol w:w="${w}"/>`).join('')
+  let out = xml.replace(grid[0], `<w:tblGrid>${newGrid}</w:tblGrid>`)
+  // Con autoajuste Word redistribuye las demás columnas al ver la columna nueva; fijas, se
+  // respetan los anchos de la plantilla.
+  out = out.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/, (tblPr, inner) => (
+    /<w:tblLayout\b/.test(inner) ? tblPr : `<w:tblPr>${inner.replace(/(<w:tblW[^>]*\/>)/, '$1<w:tblLayout w:type="fixed"/>')}</w:tblPr>`
+  ))
+
+  const rows = collectRows(out)
+  let built = ''
+  let cursor = 0
+  for (const { start, end } of rows) {
+    const row = out.slice(start, end)
+    const cells = rowBounds(row)
+    const lastCell = cells[cells.length - 1]
+    const grossCell = cells.find((c) => c.last === grossCol && c.span === 1 && cells.some((p) => p.last === grossCol - 1))
+    let next = row
+    if (lastCell?.last === total) {
+      const pieces = cells.map((c) => row.slice(c.start, c.end))
+      if (grossCell) {
+        const gi = cells.indexOf(grossCell)
+        const grossW = Number((pieces[gi].match(/<w:tcW w:w="(\d+)"/) || [])[1] || 0)
+        const lastW = Number((pieces[pieces.length - 1].match(/<w:tcW w:w="(\d+)"/) || [])[1] || 0)
+        pieces[gi] = setCellSpan(pieces[gi], 2, grossW + extra)
+        pieces[pieces.length - 1] = setCellSpan(pieces[pieces.length - 1], lastCell.span, Math.max(lastW - extra, 0))
+      } else {
+        pieces[pieces.length - 1] = setCellSpan(pieces[pieces.length - 1], lastCell.span + 1)
+      }
+      next = row.slice(0, cells[0].start) + pieces.join('')
+    }
+    built += out.slice(cursor, start) + next
+    cursor = end
+  }
+  return built + out.slice(cursor)
+}
+
 function placeFields(xml) {
   let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
@@ -334,7 +422,7 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', placeFields(file.asText()))
+  zip.file('word/document.xml', pageMargins(placeFields(widenGrossWeight(file.asText()))))
 
   const payload = normalize({
     ...data,
