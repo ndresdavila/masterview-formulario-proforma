@@ -10,6 +10,7 @@ import PartyDetails from './components/PartyDetails';
 import PortDetails from './components/PortDetails';
 import DynamicRows from './components/DynamicRows';
 import TotalsSection from './components/TotalsSection';
+import StatusOverlay from './components/StatusOverlay';
 import { formatAmount, formatWeight, parseAmount } from './utils/amount';
 import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
@@ -61,24 +62,28 @@ function emptyCargoItem() {
   };
 }
 
+const EMPTY_FORM = {
+  shipper: '',
+  consignee: '',
+  notify_party: '',
+  second_notify: '',
+  booking_number: '',
+  vessel: '',
+  voy_number: '',
+  port_of_loading: '',
+  port_of_discharge: '',
+};
+
 function App() {
   // === STATE MANAGEMENT ===
-  const [formData, setFormData] = useState({
-    shipper: '',
-    consignee: '',
-    notify_party: '',
-    second_notify: '',
-    booking_number: '',
-    vessel: '',
-    voy_number: '',
-    port_of_loading: '',
-    port_of_discharge: '',
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
   const [globalMarks, setGlobalMarks] = useState('');
   const [cargoSummary, setCargoSummary] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // { phase: 'loading' | 'success', message, detail? } mientras se muestra el mensaje central.
+  const [status, setStatus] = useState(null);
 
   const [rows, setRows] = useState([emptyCargoItem()]);
 
@@ -105,6 +110,15 @@ function App() {
 
   const addRow = () => {
     setRows([...rows, emptyCargoItem()]);
+  };
+
+  const resetForm = () => {
+    setFormData(EMPTY_FORM);
+    setRows([emptyCargoItem()]);
+    setGlobalMarks('');
+    setCargoSummary('');
+    setStatus(null);
+    window.scrollTo({ top: 0 });
   };
 
   const handleSubmitJson = async (e) => {
@@ -222,19 +236,20 @@ function App() {
     setIsSubmitting(true);
 
     if (localWord) {
-      showStatus("Generando Proforma...", "info", true);
+      setStatus({ phase: 'loading', message: 'Generando proforma...' });
       try {
         await downloadLocalProforma({ data: jsonPayload.data, fileName });
-        showStatus("Proforma generada", "success");
+        setStatus({ phase: 'success', message: 'Proforma generada exitosamente', detail: `Se descargó ${fileName}` });
       } catch (err) {
         console.error(err);
+        setStatus(null);
         showStatus(err.message || "No se pudo generar la proforma", "error");
       }
       setIsSubmitting(false);
       return;
     }
 
-    showStatus("Enviando Proforma...", "info", true);
+    setStatus({ phase: 'loading', message: 'Enviando proforma...' });
     try {
       const res = await fetch(`${API_BASE}/documents/generate_and_send`, {
         method: "POST",
@@ -242,10 +257,10 @@ function App() {
         body: JSON.stringify(jsonPayload),
       });
       if (!res.ok) throw new Error(await readError(res));
-      showStatus("Proforma enviada", "success");
-      setTimeout(() => setIsSubmitting(false), 5000);
+      setStatus({ phase: 'success', message: 'Proforma enviada exitosamente' });
     } catch (err) {
       console.error(err);
+      setStatus(null);
       showStatus(err.message || "No se pudo generar la proforma", "error");
       try {
         await downloadWord();
@@ -253,8 +268,8 @@ function App() {
       } catch (downloadErr) {
         console.error(downloadErr);
       }
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
   async function readError(res) {
@@ -319,6 +334,7 @@ function App() {
         </form>
       </div>
       <ToastContainer position="bottom-right" hideProgressBar transition={fadeToast} />
+      <StatusOverlay status={status} onReset={resetForm} />
     </Layout>
   );
 }
