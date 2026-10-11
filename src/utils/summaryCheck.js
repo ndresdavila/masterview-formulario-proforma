@@ -21,8 +21,8 @@ export function readSummaryFigures(text) {
   const raw = String(text || '')
   if (!raw.trim()) return { packages: null, net: null, gross: null }
 
-  const packages = firstAmount(raw, /total\s+(?:bags|cajas|boxes|packages|bultos|paquetes)\s*:?\s*([\d.,]+)/i)
-    ?? maxAmount(raw, /([\d.,]+)\s*(?:bags|cajas|boxes|packages|bultos|paquetes)\b/gi)
+  const packages = firstAmount(raw, /total\s+(?:bags?|cajas?|box(?:es)?|packages?|bultos?|paquetes?)\s*:?\s*([\d.,]+)/i)
+    ?? maxAmount(raw, /([\d.,]+)\s*(?:bags?|cajas?|box(?:es)?|packages?|bultos?|paquetes?)\b/gi)
 
   const net = labeledWeight(raw, 'net')
     ?? firstAmount(raw, /peso\s+neto(?:\s+total)?\s*:?\s*([\d.,]+)/i)

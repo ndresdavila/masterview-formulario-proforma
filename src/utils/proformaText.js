@@ -1,7 +1,7 @@
 import { readCargoFigures } from './cargoFigures.js'
 import { formatWeight, parseAmount } from './amount.js'
 
-const COUNT_WORD =/(?:bags|cajas|boxes|packages|bultos|paquetes)/i
+const COUNT_WORD =/(?:bags?|cajas?|box(?:es)?|packages?|bultos?|paquetes?)/i
 
 const PACKAGE_COUNT = new RegExp(`(^|[^\\w.,])(\\d[\\d.,]*)\\s+(?=${COUNT_WORD.source}\\b)`, 'gi')
 

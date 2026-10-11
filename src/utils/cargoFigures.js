@@ -10,7 +10,7 @@ const after = (label) => new RegExp(`${NUM}[ \\t]*${KG_INLINE}(?:${label})${END}
 // Etiqueta antes de la cifra: "NET WEIGHT: 25,047.00 KG", "PESO BRUTO (KG): 4.118,40".
 const before = (label) => new RegExp(`(?:${label})${END}\\s*(?:total)?\\s*${UNIT}:?\\s*${UNIT}${NUM}`, 'gi')
 
-const PACKAGES = after('bags|sacks|sacos|cajas|boxes|cartons|packages|pkgs|bultos|paquetes|pallets|bales|drums')
+const PACKAGES = after('bags?|sacks?|sacos?|cajas?|box(?:es)?|cartons?|packages?|pkgs?|bultos?|paquetes?|pallets?|bales?|drums?')
 
 const FIELDS = {
   netWeight: {
