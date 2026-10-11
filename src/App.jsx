@@ -21,7 +21,8 @@ import {
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
-import { downloadLocalProforma } from './utils/localWord';
+import { downloadLocalHbl, downloadLocalProforma } from './utils/localWord';
+import { buildHblData, hblFileName } from './utils/hbl';
 
 const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
 const MAILBOX = "log@masterview.me";
@@ -245,10 +246,23 @@ function App() {
     setIsSubmitting(true);
 
     if (localWord) {
-      setStatus({ phase: 'loading', message: 'Generando proforma...' });
+      setStatus({ phase: 'loading', message: 'Generando proforma y HBL...' });
       try {
         await downloadLocalProforma({ data: jsonPayload.data, fileName });
-        setStatus({ phase: 'success', message: 'Proforma generada exitosamente', detail: `Se descargó ${fileName}` });
+        // El HBL sale de los mismos datos. Si falla, la proforma ya está descargada igual.
+        const hblName = hblFileName(formData.booking_number);
+        let hblError = null;
+        try {
+          await downloadLocalHbl({ data: buildHblData({ formData, rows, globalMarks, cargoSummary, sums }), fileName: hblName });
+        } catch (err) {
+          console.error(err);
+          hblError = err;
+        }
+        setStatus({
+          phase: 'success',
+          message: hblError ? 'Proforma generada exitosamente' : 'Proforma y HBL generados exitosamente',
+          detail: hblError ? `Se descargó ${fileName}. No se pudo generar el HBL.` : `Se descargaron ${fileName} y ${hblName}`,
+        });
       } catch (err) {
         console.error(err);
         setStatus(null);

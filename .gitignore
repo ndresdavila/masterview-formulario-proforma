@@ -31,5 +31,8 @@ dist-ssr
 # Misc.
 *.docx
 !src/assets/Template.docx
+!src/assets/HBL.docx
 *.doc
 *.pdf
+*.xls
+CAMBIO_AUTORELLENO_DESCRIPCION.md
