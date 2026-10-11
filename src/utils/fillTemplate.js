@@ -90,11 +90,15 @@ function rowAfter(xml, label) {
   return { start, end }
 }
 
-function fillRowAfter(xml, label, tagsByIndex, { dropHeight = false } = {}) {
+// Espacio en blanco al pie de cada contenedor (una línea) para que no queden pegados.
+const ROW_GAP = '<w:tcMar><w:bottom w:w="240" w:type="dxa"/></w:tcMar>'
+
+function fillRowAfter(xml, label, tagsByIndex, { dropHeight = false, rowGap = false } = {}) {
   const span = rowAfter(xml, label)
   let row = xml.slice(span.start, span.end)
   // Sin alto fijo, y cada contenedor entero en una página: Word no parte la fila entre hojas.
   if (dropHeight) row = row.replace(/<w:trHeight[^/]*\/>/, '<w:cantSplit/>')
+  if (rowGap) row = row.replace(/<\/w:tcPr>/g, `${ROW_GAP}</w:tcPr>`)
   row = mapCells(row, tagsByIndex)
   return xml.slice(0, span.start) + row + xml.slice(span.end)
 }
@@ -128,9 +132,15 @@ function borderTag(edge, clear = false) {
 
 function setCellEdge(cell, edge, clear = false) {
   const tag = borderTag(edge, clear)
-  const existing = new RegExp(`<w:${edge}\\b[^/]*/>`)
-  if (existing.test(cell)) return cell.replace(existing, tag)
-  if (cell.includes('<w:tcBorders>')) return cell.replace('<w:tcBorders>', `<w:tcBorders>${tag}`)
+  // Solo dentro de tcBorders: tcMar también tiene <w:bottom/> y no es un borde.
+  const borders = cell.match(/<w:tcBorders>[\s\S]*?<\/w:tcBorders>/)
+  if (borders) {
+    const existing = new RegExp(`<w:${edge}\\b[^/]*/>`)
+    const next = existing.test(borders[0])
+      ? borders[0].replace(existing, tag)
+      : borders[0].replace('<w:tcBorders>', `<w:tcBorders>${tag}`)
+    return cell.replace(borders[0], next)
+  }
   const block = `<w:tcBorders>${tag}</w:tcBorders>`
   const anchor = cell.match(/<w:gridSpan[^/]*\/>/) || cell.match(/<w:tcW[^/]*\/>/)
   if (anchor) {
@@ -232,23 +242,54 @@ function shareWidths(total, weights) {
   })
 }
 
-function totalsParagraph(label, value) {
-  const labelProps = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:b/><w:bCs/><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="334155"/>'
-  const valueProps = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="16"/><w:szCs w:val="16"/><w:color w:val="334155"/>'
-  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/><w:rPr>${labelProps}</w:rPr></w:pPr><w:r><w:rPr>${labelProps}</w:rPr><w:t>${xmlEscape(label)}:</w:t></w:r><w:r><w:rPr>${valueProps}</w:rPr><w:t xml:space="preserve"> ${xmlEscape(value)}</w:t></w:r></w:p>`
+// Ancho aproximado de Arial en milésimas de em, para saber si los totales caben en una línea.
+const BOLD_CAPS = { I: 278, J: 556, L: 611, T: 611, F: 611, Z: 611, E: 667, P: 667, S: 667, V: 667, X: 667, Y: 667, K: 722, A: 722, B: 722, C: 722, D: 722, H: 722, N: 722, R: 722, U: 722, G: 778, O: 778, Q: 778, M: 833, W: 944 }
+
+function textEm(text, bold) {
+  let width = 0
+  for (const ch of String(text)) {
+    if (/[0-9]/.test(ch)) width += 556
+    else if (/[A-Z]/.test(ch)) width += bold ? (BOLD_CAPS[ch] || 722) : 667
+    else if (ch === ':') width += 333
+    else width += 278
+  }
+  return width / 1000
 }
 
-function totalsCell(textLabel, textValue, width) {
-  return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:vAlign w:val="center"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="60" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tcMar></w:tcPr>${totalsParagraph(textLabel, textValue)}</w:tc>`
+const TOTALS_PADDING = 60
+const TOTALS_MAX_SIZE = 16
+const TOTALS_MIN_SIZE = 9
+
+function totalsParagraph(label, value, size) {
+  const font = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'
+  const sizeProps = `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:color w:val="334155"/>`
+  const labelProps = `${font}<w:b/><w:bCs/>${sizeProps}`
+  const valueProps = `${font}${sizeProps}`
+  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/><w:rPr>${labelProps}</w:rPr></w:pPr><w:r><w:rPr>${labelProps}</w:rPr><w:t>${xmlEscape(label)}:</w:t></w:r><w:r><w:rPr>${valueProps}</w:rPr><w:t xml:space="preserve">\u00A0${xmlEscape(value).replace(/ /g, '\u00A0')}</w:t></w:r></w:p>`
 }
 
+function totalsCell(textLabel, textValue, width, size) {
+  return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:noWrap/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="${TOTALS_PADDING}" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="${TOTALS_PADDING}" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${totalsParagraph(textLabel, textValue, size)}</w:tc>`
+}
+
+// Cada total va en una sola línea: el ancho de cada celda sigue el largo de su texto y, si
+// todo no cabe a 8 pt, se baja la letra de esta fila hasta que quepa.
 function totalsTable(width, items) {
-  const weights = items.map(([label, value]) => label.length + String(value ?? '').length + 2)
-  const widths = shareWidths(width, weights)
+  const ems = items.map(([label, value]) => textEm(`${label}:`, true) + textEm(` ${value ?? ''}`, false))
+  const room = width - items.length * TOTALS_PADDING * 2
+  // w:sz va en medios puntos y un punto son 20 twips; la medida ya es algo generosa.
+  const fit = Math.floor(room / (ems.reduce((a, b) => a + b, 0) * 10))
+  const size = Math.max(TOTALS_MIN_SIZE, Math.min(TOTALS_MAX_SIZE, fit))
+  const widths = shareWidths(width, ems.map((em) => em * size * 10 + TOTALS_PADDING * 2))
   const grid = widths.map((cellWidth) => `<w:gridCol w:w="${cellWidth}"/>`).join('')
-  const cells = items.map(([label, value], index) => totalsCell(label, value, widths[index])).join('')
+  const cells = items.map(([label, value], index) => totalsCell(label, value, widths[index], size)).join('')
   const rule = `w:val="${SOFT_RULE.val}" w:sz="${SOFT_RULE.sz}" w:space="0" w:color="${SOFT_RULE.color}"`
   return `<w:tbl><w:tblPr><w:tblW w:w="${width}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV ${rule}/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${cells}</w:tr></w:tbl>`
+}
+
+function withUnit(value, unit) {
+  const text = String(value ?? '').trim()
+  return text ? `${text} ${unit}` : ''
 }
 
 function appendTotalsRow(xml, data) {
@@ -264,9 +305,9 @@ function appendTotalsRow(xml, data) {
   const items = [
     ['TOTAL CONTAINERS', data.total_containers],
     ['TOTAL BAGS', data.total_packages],
-    ['TOTAL NET WEIGHT', data.total_net],
-    ['TOTAL GROSS WEIGHT', data.total_gross],
-    ['TOTAL MEASUREMENT', data.total_cbm],
+    ['TOTAL NET WEIGHT', withUnit(data.total_net, 'KG')],
+    ['TOTAL GROSS WEIGHT', withUnit(data.total_gross, 'KG')],
+    ['TOTAL MEASUREMENT', withUnit(data.total_cbm, 'CBM')],
   ]
   const table = totalsTable(width, items)
   const row = `<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:gridSpan w:val="${span}"/>${`<w:tcBorders>${borderTag('top')}</w:tcBorders>`}<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p></w:tc></w:tr>`
@@ -381,6 +422,55 @@ function widenGrossWeight(xml) {
   return built + out.slice(cursor)
 }
 
+// En la plantilla "VOY" está separado de "VESSEL" con espacios, así que el número de viaje no
+// tiene dónde alinearse. Se cambia por una tabulación al borde derecho de la celda, la misma
+// que lleva la fila del valor: VOY y su número quedan uno debajo del otro.
+const CELL_MARGINS = 216
+
+function voyageTabStop(cellXml) {
+  const width = Number((cellXml.match(/<w:tcW w:w="(\d+)"/) || [])[1] || 0)
+  return `<w:tabs><w:tab w:val="right" w:pos="${Math.max(width - CELL_MARGINS, 0)}"/></w:tabs>`
+}
+
+function withTabStop(paragraphXml, tabs) {
+  if (paragraphXml.includes('<w:pPr>')) return paragraphXml.replace('<w:pPr>', `<w:pPr>${tabs}`)
+  return paragraphXml.replace(/(<w:p\b[^>]*>)/, `$1<w:pPr>${tabs}</w:pPr>`)
+}
+
+function alignVoyage(xml) {
+  const at = xml.indexOf('>VESSEL')
+  if (at < 0) return xml
+  const cellStart = xml.lastIndexOf('<w:tc>', at)
+  const cellEnd = xml.indexOf('</w:tc>', at)
+  const cell = xml.slice(cellStart, cellEnd)
+  if (!cell.includes('>VOY<')) return xml
+  const pStart = cell.indexOf('<w:p ')
+  const pEnd = cell.indexOf('</w:p>') + '</w:p>'.length
+  const runs = cell.slice(pStart, pEnd).split(/(?=<w:r[ >])/)
+  const paragraph = runs
+    .filter((run) => !/^<w:r[ >]/.test(run) || !/<w:t xml:space="preserve">\s+<\/w:t>/.test(run))
+    .map((run) => run
+      .replace(/<w:t xml:space="preserve">VESSEL\s+<\/w:t>/, '<w:t>VESSEL</w:t>')
+      .replace('<w:t>VOY</w:t>', '<w:tab/><w:t>VOY</w:t>'))
+    .join('')
+  const nextCell = cell.slice(0, pStart) + withTabStop(paragraph, voyageTabStop(cell)) + cell.slice(pEnd)
+  return xml.slice(0, cellStart) + nextCell + xml.slice(cellEnd)
+}
+
+function voyageTabInValue(xml) {
+  const at = xml.indexOf('[[vessel_name]]')
+  if (at < 0) return xml
+  const cellStart = xml.lastIndexOf('<w:tc>', at)
+  const pStart = xml.lastIndexOf('<w:p ', at)
+  const pEnd = xml.indexOf('</w:p>', at) + '</w:p>'.length
+  const tabs = voyageTabStop(xml.slice(cellStart, at))
+  let paragraph = withTabStop(xml.slice(pStart, pEnd), tabs)
+  // El número de viaje usa la misma letra que el nombre del buque.
+  const rPr = (paragraph.match(/<w:r>(<w:rPr>[\s\S]*?<\/w:rPr>)<w:t>\[\[vessel_name\]\]/) || [])[1] || ''
+  paragraph = paragraph.replace('<w:r><w:tab/>', `<w:r>${rPr}<w:tab/>`)
+  return xml.slice(0, pStart) + paragraph + xml.slice(pEnd)
+}
+
 function placeFields(xml) {
   let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
@@ -391,10 +481,12 @@ function placeFields(xml) {
     0: '[[notify_party]]',
     1: '[[second_notify]]',
   })
+  out = alignVoyage(out)
   out = fillRowAfter(out, 'VESSEL', {
-    0: '[[vessel]]',
+    0: '[[vessel_name]]</w:t></w:r><w:r><w:tab/><w:t>[[voy_number]]',
     1: '[[port_of_loading]]',
   })
+  out = voyageTabInValue(out)
   out = fillRowAfter(out, 'PORT OF DISCHARGE', {
     0: '[[port_of_discharge]]',
   })
@@ -404,7 +496,7 @@ function placeFields(xml) {
     2: '[[description_block]]',
     3: '[[gross_weight]]',
     4: '[[measurements]][[/rows]]',
-  }, { dropHeight: true })
+  }, { dropHeight: true, rowGap: true })
   return out
 }
 
@@ -428,6 +520,8 @@ export function fillTemplate(buffer, data) {
     ...data,
     notify_party: String(data.notify_party || '').trim(),
     second_notify: String(data.second_notify || '').trim(),
+    vessel_name: String(data.vessel_name ?? data.vessel ?? '').trim(),
+    voy_number: String(data.voy_number || '').trim(),
     rows: prepareRows(data.rows),
   })
   const doc = new Docxtemplater(zip, {

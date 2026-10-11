@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { ToastContainer, cssTransition, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './custom-toast.css';
@@ -121,6 +121,8 @@ function App() {
     window.scrollTo({ top: 0 });
   };
 
+  const closeStatus = useCallback(() => setStatus(null), []);
+
   const handleSubmitJson = async (e) => {
     e.preventDefault();
 
@@ -197,6 +199,8 @@ function App() {
       data: {
         ...formData,
         vessel: vesselLine(formData.vessel, formData.voy_number),
+        vessel_name: formData.vessel.trim(),
+        voy_number: formData.voy_number.trim(),
         notify_party: String(formData.notify_party || '').trim(),
         bill_of_lading_number: '',
         place_of_delivery: '',
@@ -334,7 +338,7 @@ function App() {
         </form>
       </div>
       <ToastContainer position="bottom-right" hideProgressBar transition={fadeToast} />
-      <StatusOverlay status={status} onReset={resetForm} />
+      <StatusOverlay status={status} onReset={resetForm} onClose={closeStatus} />
     </Layout>
   );
 }

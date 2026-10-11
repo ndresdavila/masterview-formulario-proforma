@@ -12,6 +12,7 @@
 }
 
 .status-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
   padding: 2.25rem 2rem 1.75rem;
@@ -21,6 +22,28 @@
   text-align: center;
   color: #0c3360;
   animation: status-rise 0.25s ease both;
+}
+
+.status-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #5b6b7d;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.status-close:hover,
+.status-close:focus-visible {
+  background: #eef3f9;
+  color: #0c3360;
 }
 
 .status-title {
