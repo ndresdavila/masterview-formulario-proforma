@@ -487,9 +487,17 @@ function liftLogo(xml) {
 // "CONTACT:" va subrayado al pie de su celda y el subrayado se monta en el borde de abajo.
 const CONTACT_GAP = '<w:spacing w:after="100"/>'
 
+// En la plantilla, la celda "CONTACT:" de NOTIFY PARTY tiene el borde de abajo en blanco. Word
+// dibuja encima la línea negra de la fila siguiente, pero el navegador (vista previa) se queda con
+// la blanca y la línea desaparece. El borde de abajo de esas celdas va siempre en negro.
+const WHITE_BOTTOM = /<w:bottom w:val="single"([^>]*?) w:color="FFFFFF"(?: w:themeColor="background1")?\/>/
+
 function separateContact(xml) {
-  return xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?>CONTACT:<\/w:t>[\s\S]*?<\/w:p>/g, (paragraph) => (
+  const spaced = xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?>CONTACT:<\/w:t>[\s\S]*?<\/w:p>/g, (paragraph) => (
     paragraph.includes('<w:pPr>') ? paragraph.replace('<w:pPr>', `<w:pPr>${CONTACT_GAP}`) : paragraph
+  ))
+  return spaced.replace(/<w:tc>(?:(?!<\/w:tc>)[\s\S])*?>CONTACT:<\/w:t>[\s\S]*?<\/w:tc>/g, (cell) => (
+    cell.replace(WHITE_BOTTOM, '<w:bottom w:val="single"$1 w:color="auto"/>')
   ))
 }
 
