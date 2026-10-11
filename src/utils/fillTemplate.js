@@ -485,7 +485,7 @@ function liftLogo(xml) {
 }
 
 // "CONTACT:" va subrayado al pie de su celda y el subrayado se monta en el borde de abajo.
-const CONTACT_GAP = '<w:spacing w:after="40"/>'
+const CONTACT_GAP = '<w:spacing w:after="100"/>'
 
 function separateContact(xml) {
   return xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?>CONTACT:<\/w:t>[\s\S]*?<\/w:p>/g, (paragraph) => (

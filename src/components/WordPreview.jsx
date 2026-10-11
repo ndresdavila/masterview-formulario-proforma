@@ -318,7 +318,7 @@ const WordPreview = ({ buildData }) => {
     <>
       <button type="button" className="word-preview-fab" onClick={() => setOpen(true)}>
         <SearchIcon />
-        Vista Previa
+        <span className="word-preview-fab-label">Vista Previa</span>
       </button>
 
       {open ? (

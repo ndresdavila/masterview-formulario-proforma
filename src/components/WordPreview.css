@@ -7,9 +7,9 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.7rem 1.15rem;
-  border: 2px solid #fff;
+  border: 0;
   border-radius: 999px;
-  /* Azul brillante con borde blanco: resalta sobre el fondo azul marino y sobre el formulario claro. */
+  /* Azul brillante: resalta sobre el fondo azul marino y sobre el formulario claro. */
   background: #1f6fe5;
   color: #fff;
   font-size: 0.9rem;
@@ -26,6 +26,39 @@
 
 .word-preview-fab:active {
   transform: scale(0.97);
+}
+
+/* Si el margen a la derecha de la hoja (máx. 1180 px, centrada) le da espacio, el botón va en
+   el medio de ese margen y no pegado a la hoja. */
+@media (min-width: 1560px) {
+  .word-preview-fab {
+    right: calc((100% - 1180px) / 4);
+    translate: 50% 0;
+  }
+}
+
+/* En celular, solo la lupa. */
+@media (max-width: 768px) {
+  .word-preview-fab {
+    width: 3.25rem;
+    height: 3.25rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .word-preview-fab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .word-preview-fab svg {
+    width: 22px;
+    height: 22px;
+  }
 }
 
 .word-preview-overlay {
