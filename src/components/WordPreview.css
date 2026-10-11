@@ -7,20 +7,21 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.7rem 1.15rem;
-  border: 0;
+  border: 2px solid #fff;
   border-radius: 999px;
-  background: #0c3360;
+  /* Azul brillante con borde blanco: resalta sobre el fondo azul marino y sobre el formulario claro. */
+  background: #1f6fe5;
   color: #fff;
   font-size: 0.9rem;
   font-weight: 600;
-  box-shadow: 0 6px 18px rgba(10, 37, 64, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .word-preview-fab:hover,
 .word-preview-fab:focus-visible {
-  background: #164a85;
+  background: #1a5fc4;
 }
 
 .word-preview-fab:active {

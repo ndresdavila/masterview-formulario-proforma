@@ -1,7 +1,9 @@
 /* Custom styles for Toastify to override defaults */
 
-.Toastify__progress-bar {
-  display: none !important;
+/* La barra no se ve, pero tiene que seguir animándose: react-toastify cierra el aviso cuando
+   termina su animación. Con display: none los avisos no se cerraban nunca. */
+.Toastify__progress-bar--wrp {
+  visibility: hidden !important;
 }
 
 @keyframes toast-fade-in {

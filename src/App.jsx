@@ -342,7 +342,16 @@ function App() {
           </div>
         </form>
       </div>
-      <ToastContainer position="top-right" hideProgressBar transition={fadeToast} />
+      {/* Todos los avisos se desvanecen poco a poco y se cierran solos. */}
+      <ToastContainer
+        position="top-right"
+        hideProgressBar
+        transition={fadeToast}
+        autoClose={3200}
+        pauseOnHover={false}
+        pauseOnFocusLoss={false}
+        toastClassName="toast-fade"
+      />
       {localWord ? <WordPreview buildData={buildDocData} /> : null}
       <StatusOverlay status={status} onReset={resetForm} onClose={closeStatus} />
     </Layout>

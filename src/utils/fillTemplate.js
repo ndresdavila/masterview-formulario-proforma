@@ -471,6 +471,28 @@ function voyageTabInValue(xml) {
   return xml.slice(0, pStart) + paragraph + xml.slice(pEnd)
 }
 
+// El logo (imagen flotante sobre la tabla) llega justo a la línea superior de la tabla y tapa el
+// borde. Se sube 4 pt y se le deja 4 pt libres debajo: la tabla queda donde estaba y la línea se ve.
+// En EMU (12700 = 1 pt).
+const LOGO_LIFT = 50800
+const LOGO_GAP = 50800
+
+function liftLogo(xml) {
+  return xml.replace(/<wp:anchor\b[^>]*>[\s\S]*?<\/wp:positionV>/, (anchor) => anchor
+    .replace(/distB="\d+"/, `distB="${LOGO_GAP}"`)
+    .replace(/(<wp:positionV relativeFrom="paragraph"><wp:posOffset>)(-?\d+)(<\/wp:posOffset>)/,
+      (_, open, offset, close) => `${open}${Number(offset) - LOGO_LIFT}${close}`))
+}
+
+// "CONTACT:" va subrayado al pie de su celda y el subrayado se monta en el borde de abajo.
+const CONTACT_GAP = '<w:spacing w:after="40"/>'
+
+function separateContact(xml) {
+  return xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?>CONTACT:<\/w:t>[\s\S]*?<\/w:p>/g, (paragraph) => (
+    paragraph.includes('<w:pPr>') ? paragraph.replace('<w:pPr>', `<w:pPr>${CONTACT_GAP}`) : paragraph
+  ))
+}
+
 function placeFields(xml) {
   let out = fillRowAfter(xml, 'SHIPPER/EXPORT', {
     0: '[[shipper]]',
@@ -514,7 +536,7 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', pageMargins(placeFields(widenGrossWeight(file.asText()))))
+  zip.file('word/document.xml', pageMargins(separateContact(liftLogo(placeFields(widenGrossWeight(file.asText()))))))
 
   const payload = normalize({
     ...data,

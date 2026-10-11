@@ -198,6 +198,23 @@ function fixTableLayout(wrapper) {
   });
 }
 
+// docx-preview pone las imágenes flotantes (el logo) a la izquierda pero ignora su desplazamiento
+// vertical y el espacio libre que piden debajo. Se aplican desde el Word, en el mismo orden.
+const EMU_PER_PT = 12700;
+
+function placeFloats(wrapper, documentXml) {
+  const anchors = [...documentXml.matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/g)].map(([, attrs, body]) => ({
+    offset: Number((body.match(/<wp:positionV\b[^>]*>\s*<wp:posOffset>(-?\d+)<\/wp:posOffset>/) || [])[1] || 0),
+    gap: Number((attrs.match(/distB="(\d+)"/) || [])[1] || 0),
+  }));
+  const floats = [...wrapper.querySelectorAll('div')].filter((div) => div.style.float);
+  if (floats.length !== anchors.length) return;
+  floats.forEach((float, index) => {
+    float.style.marginTop = `${anchors[index].offset / EMU_PER_PT}pt`;
+    float.style.marginBottom = `${anchors[index].gap / EMU_PER_PT}pt`;
+  });
+}
+
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
     <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.4" />
@@ -273,6 +290,7 @@ const WordPreview = ({ buildData }) => {
         const wrapper = pages.querySelector('.docx-preview-wrapper');
         const documentXml = new PizZip(await blob.arrayBuffer()).file('word/document.xml').asText();
         fixTableLayout(wrapper);
+        placeFloats(wrapper, documentXml);
         matchWordLines(wrapper, documentXml);
         alignTabs(wrapper, readTabStops(documentXml));
         paginate(wrapper);
