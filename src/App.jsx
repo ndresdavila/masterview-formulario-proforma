@@ -11,6 +11,7 @@ import PortDetails from './components/PortDetails';
 import DynamicRows from './components/DynamicRows';
 import TotalsSection from './components/TotalsSection';
 import StatusOverlay from './components/StatusOverlay';
+import WordPreview from './components/WordPreview';
 import { formatAmount, formatWeight, parseAmount } from './utils/amount';
 import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
@@ -121,6 +122,53 @@ function App() {
     window.scrollTo({ top: 0 });
   };
 
+  // Datos del Word: los mismos para la descarga, el correo y la vista previa.
+  const buildDocData = () => {
+    const formattedRows = sortByContainer(rows).map((r) => ({
+      marks_numbers: containerMarks(r),
+      description: containerDescription(r),
+      packages: r.packages,
+      gross_weight: formatWeight(r.grossWeight),
+      net_weight: formatWeight(r.netWeight),
+      measurements: r.measurements,
+    }));
+
+    const marksBody = globalMarks.trim();
+
+    const totalsRow = {
+      marks_numbers: marksBody ? `MARCAS:\n${marksBody}` : "",
+      description: summaryDescription(cargoSummary),
+      packages: "",
+      gross_weight: "",
+      net_weight: "",
+      measurements: "",
+    };
+
+    // Append totals row
+    const finalRows = [...formattedRows, totalsRow];
+
+    return {
+      ...formData,
+      vessel: vesselLine(formData.vessel, formData.voy_number),
+      vessel_name: formData.vessel.trim(),
+      voy_number: formData.voy_number.trim(),
+      notify_party: String(formData.notify_party || '').trim(),
+      bill_of_lading_number: '',
+      place_of_delivery: '',
+      freight_payable: '',
+      issue_date: '',
+      shipped_on_board: '',
+      rows: finalRows,
+      global_marks: globalMarks,
+      cargo_summary: cargoSummary,
+      total_containers: formattedRows.length,
+      total_packages: sums.packages,
+      total_net: sums.net,
+      total_gross: sums.gross,
+      total_cbm: sums.cbm,
+    };
+  };
+
   const closeStatus = useCallback(() => setStatus(null), []);
 
   const handleSubmitJson = async (e) => {
@@ -170,52 +218,9 @@ function App() {
 
     const fileName = `PROFORMA_${formData.booking_number.trim().replace(/[^\w.-]+/g, "_")}.docx`;
 
-    // === PREPARE PAYLOAD ===
-    const formattedRows = sortByContainer(rows).map((r) => ({
-      marks_numbers: containerMarks(r),
-      description: containerDescription(r),
-      packages: r.packages,
-      gross_weight: formatWeight(r.grossWeight),
-      net_weight: formatWeight(r.netWeight),
-      measurements: r.measurements,
-    }));
-
-    const marksBody = globalMarks.trim();
-
-    const totalsRow = {
-      marks_numbers: marksBody ? `MARCAS:\n${marksBody}` : "",
-      description: summaryDescription(cargoSummary),
-      packages: "",
-      gross_weight: "",
-      net_weight: "",
-      measurements: "",
-    };
-
-    // Append totals row
-    const finalRows = [...formattedRows, totalsRow];
-
     const jsonPayload = {
       template_name: "Template.docx",
-      data: {
-        ...formData,
-        vessel: vesselLine(formData.vessel, formData.voy_number),
-        vessel_name: formData.vessel.trim(),
-        voy_number: formData.voy_number.trim(),
-        notify_party: String(formData.notify_party || '').trim(),
-        bill_of_lading_number: '',
-        place_of_delivery: '',
-        freight_payable: '',
-        issue_date: '',
-        shipped_on_board: '',
-        rows: finalRows,
-        global_marks: globalMarks,
-        cargo_summary: cargoSummary,
-        total_containers: formattedRows.length,
-        total_packages: sums.packages,
-        total_net: sums.net,
-        total_gross: sums.gross,
-        total_cbm: sums.cbm,
-      },
+      data: buildDocData(),
       email_to: [MAILBOX],
       email_cc: [],
       email_cco: [],
@@ -337,7 +342,8 @@ function App() {
           </div>
         </form>
       </div>
-      <ToastContainer position="bottom-right" hideProgressBar transition={fadeToast} />
+      <ToastContainer position="top-right" hideProgressBar transition={fadeToast} />
+      {localWord ? <WordPreview buildData={buildDocData} /> : null}
       <StatusOverlay status={status} onReset={resetForm} onClose={closeStatus} />
     </Layout>
   );
