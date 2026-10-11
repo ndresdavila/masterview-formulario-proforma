@@ -1,4 +1,20 @@
-// Acepta 50318.00, 50,318.00, 24978,00 y 32.575,00.
+// Cifra con un solo tipo de separador (solo comas o solo puntos):
+// - "25,047" o "1,234,567": grupos de 3 → separan miles.
+// - "24978,00" o "25,228,50": el último grupo no es de 3 → es el decimal y los anteriores, miles.
+// Devuelve el número con punto decimal, o null si los grupos no tienen sentido ("1,23,4").
+function oneSeparator(s, sep) {
+  const groups = s.split(sep)
+  const first = groups[0]
+  const last = groups[groups.length - 1]
+  if (groups.length === 2) {
+    return last.length === 3 && first.length >= 1 && first.length <= 3 ? first + last : `${first}.${last}`
+  }
+  const middle = groups.slice(1, -1)
+  if (!first.length || first.length > 3 || !middle.every((g) => g.length === 3)) return null
+  return last.length === 3 ? groups.join('') : `${[first, ...middle].join('')}.${last}`
+}
+
+// Acepta 50318.00, 50,318.00, 24978,00, 32.575,00, 1,234,567 y 25,228,50 (dos comas, la última decimal).
 export function parseAmount(raw) {
   const s = String(raw ?? '').trim().replace(/\s/g, '')
   if (!s) return null
@@ -10,16 +26,11 @@ export function parseAmount(raw) {
       ? s.replace(/\./g, '').replace(',', '.')
       : s.replace(/,/g, '')
   } else if (lastComma >= 0) {
-    const frac = s.slice(lastComma + 1)
-    const head = s.slice(0, lastComma)
-    norm = frac.length === 3 && !head.includes(',') && head.length <= 3
-      ? s.replace(/,/g, '')
-      : s.replace(/\./g, '').replace(',', '.')
+    norm = oneSeparator(s, ',')
   } else if (lastDot >= 0) {
-    const frac = s.slice(lastDot + 1)
-    const head = s.slice(0, lastDot)
-    if (frac.length === 3 && !head.includes('.') && head.length <= 3) norm = s.replace(/\./g, '')
+    norm = oneSeparator(s, '.')
   }
+  if (norm == null) return null
   const n = Number(norm)
   return Number.isFinite(n) ? n : null
 }

@@ -14,6 +14,25 @@ function withoutPackageCount(description, packages) {
   return description.replace(PACKAGE_COUNT, '$1').replace(/^[ \t]+/gm, '')
 }
 
+// Sin espacios al inicio ni al final del texto, ni al final de cada línea. Los del medio se
+// respetan: a veces se usan para alinear ("25,047.00 KG NET  25,228.50 KG GROSS").
+export function cleanText(value) {
+  return String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t\xA0]+$/, ''))
+    .join('\n')
+    .trim()
+}
+
+// Limpia todos los campos de texto de un objeto del formulario (los demás quedan igual).
+export function cleanFields(fields) {
+  return Object.fromEntries(Object.entries(fields).map(([key, value]) => [
+    key,
+    typeof value === 'string' ? cleanText(value) : value,
+  ]))
+}
+
 export function sortByContainer(rows) {
   const key = (row) => String(row?.container || '').trim()
   return [...rows].sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true, sensitivity: 'base' }))

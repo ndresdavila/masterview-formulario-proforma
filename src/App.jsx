@@ -15,6 +15,8 @@ import WordPreview from './components/WordPreview';
 import { formatAmount, formatWeight, parseAmount } from './utils/amount';
 import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
 import {
+  cleanFields,
+  cleanText,
   containerMarks,
   containerDescription,
   sortByContainer,
@@ -123,9 +125,19 @@ function App() {
     window.scrollTo({ top: 0 });
   };
 
+  // Lo que pasa a los Word (proforma, HBL y vista previa): cada campo sin espacios al inicio ni
+  // al final, ni al final de cada línea.
+  const cleanInput = () => ({
+    form: cleanFields(formData),
+    cargo: rows.map(cleanFields),
+    marks: cleanText(globalMarks),
+    summary: cleanText(cargoSummary),
+  });
+
   // Datos del Word: los mismos para la descarga, el correo y la vista previa.
   const buildDocData = () => {
-    const formattedRows = sortByContainer(rows).map((r) => ({
+    const { form, cargo, marks, summary } = cleanInput();
+    const formattedRows = sortByContainer(cargo).map((r) => ({
       marks_numbers: containerMarks(r),
       description: containerDescription(r),
       packages: r.packages,
@@ -134,11 +146,9 @@ function App() {
       measurements: r.measurements,
     }));
 
-    const marksBody = globalMarks.trim();
-
     const totalsRow = {
-      marks_numbers: marksBody ? `MARCAS:\n${marksBody}` : "",
-      description: summaryDescription(cargoSummary),
+      marks_numbers: marks ? `MARCAS:\n${marks}` : "",
+      description: summaryDescription(summary),
       packages: "",
       gross_weight: "",
       net_weight: "",
@@ -149,19 +159,17 @@ function App() {
     const finalRows = [...formattedRows, totalsRow];
 
     return {
-      ...formData,
-      vessel: vesselLine(formData.vessel, formData.voy_number),
-      vessel_name: formData.vessel.trim(),
-      voy_number: formData.voy_number.trim(),
-      notify_party: String(formData.notify_party || '').trim(),
+      ...form,
+      vessel: vesselLine(form.vessel, form.voy_number),
+      vessel_name: form.vessel,
       bill_of_lading_number: '',
       place_of_delivery: '',
       freight_payable: '',
       issue_date: '',
       shipped_on_board: '',
       rows: finalRows,
-      global_marks: globalMarks,
-      cargo_summary: cargoSummary,
+      global_marks: marks,
+      cargo_summary: summary,
       total_containers: formattedRows.length,
       total_packages: sums.packages,
       total_net: sums.net,
@@ -253,7 +261,11 @@ function App() {
         const hblName = hblFileName(formData.booking_number);
         let hblError = null;
         try {
-          await downloadLocalHbl({ data: buildHblData({ formData, rows, globalMarks, cargoSummary, sums }), fileName: hblName });
+          const { form, cargo, marks, summary } = cleanInput();
+          await downloadLocalHbl({
+            data: buildHblData({ formData: form, rows: cargo, globalMarks: marks, cargoSummary: summary, sums }),
+            fileName: hblName,
+          });
         } catch (err) {
           console.error(err);
           hblError = err;
