@@ -215,6 +215,53 @@ function placeFloats(wrapper, documentXml) {
   });
 }
 
+const SIDES = ['Top', 'Right', 'Bottom', 'Left'];
+
+function contentWidth(cell) {
+  const style = getComputedStyle(cell);
+  return cell.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+}
+
+// Safari dibuja todo borde de menos de 1 px (las líneas de 0,5 pt de Word) con un solo píxel
+// físico, y con la hoja achicada eso queda por debajo de un píxel y no se dibuja: en el iPhone la
+// tabla salía sin líneas. Con la hoja achicada cada borde fino pasa a 1 px (o a los píxeles físicos
+// que hagan falta para que, achicado, mida al menos uno). El ancho que gana el borde se le quita al
+// relleno de la celda, así el texto tiene el mismo espacio y se acomoda igual que antes.
+function keepBordersVisible(wrapper, scale) {
+  const ratio = window.devicePixelRatio || 1;
+  const minimum = Math.max(1, Math.ceil(1 / scale) / ratio);
+  const elements = [...wrapper.querySelectorAll('table, td')];
+  const cells = elements.filter((element) => element.tagName === 'TD');
+  // Se vuelve a lo que dibujó docx-preview antes de medir (el tamaño de la ventana puede cambiar).
+  elements.forEach((element) => {
+    if (element.dataset.original == null) {
+      element.dataset.original = JSON.stringify(SIDES.map((side) => element.style[`border${side}Width`]));
+      element.dataset.padding = element.style.paddingRight;
+    }
+    JSON.parse(element.dataset.original).forEach((width, index) => { element.style[`border${SIDES[index]}Width`] = width; });
+    element.style.paddingRight = element.dataset.padding;
+  });
+  if (scale >= 1) return;
+  const before = cells.map(contentWidth);
+  const widths = elements.map((element) => {
+    const style = getComputedStyle(element);
+    return SIDES.map((side) => (['none', 'hidden'].includes(style[`border${side}Style`]) ? 0 : Number.parseFloat(style[`border${side}Width`]) || 0));
+  });
+  elements.forEach((element, index) => {
+    widths[index].forEach((width, side) => {
+      if (width > 0 && width < minimum) element.style[`border${SIDES[side]}Width`] = `${minimum}px`;
+    });
+  });
+  const after = cells.map(contentWidth);
+  cells.forEach((cell, index) => {
+    const lost = before[index] - after[index];
+    if (lost > 0) {
+      const padding = Number.parseFloat(getComputedStyle(cell).paddingRight);
+      cell.style.paddingRight = `${Math.max(padding - lost, 0)}px`;
+    }
+  });
+}
+
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
     <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.4" />
@@ -244,6 +291,7 @@ const WordPreview = ({ buildData }) => {
     // texto y las hojas dejan de medir lo mismo que en Word.
     const room = body.clientWidth - 32;
     const scale = Math.min(1, room / page.offsetWidth);
+    keepBordersVisible(wrapper, scale);
     wrapper.style.transformOrigin = 'top left';
     wrapper.style.transform = `scale(${scale})`;
     pagesRef.current.style.width = `${wrapper.offsetWidth * scale}px`;
