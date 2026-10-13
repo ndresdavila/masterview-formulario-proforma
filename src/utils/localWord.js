@@ -1,7 +1,5 @@
 import templateUrl from '../assets/Template.docx?url'
-import hblTemplateUrl from '../assets/HBL.docx?url'
 import { fillTemplate } from './fillTemplate.js'
-import { fillHbl } from './hbl.js'
 
 const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -26,11 +24,9 @@ export async function buildLocalProforma(data) {
   return new Blob([bytes], { type: DOCX_TYPE })
 }
 
+// Descarga la proforma y devuelve el mismo Word para enviarlo a Masterview.
 export async function downloadLocalProforma({ data, fileName }) {
-  download(await buildLocalProforma(data), fileName)
-}
-
-export async function downloadLocalHbl({ data, fileName }) {
-  const bytes = fillHbl(await readTemplate(hblTemplateUrl, 'del HBL'), data)
-  download(new Blob([bytes], { type: DOCX_TYPE }), fileName)
+  const blob = await buildLocalProforma(data)
+  download(blob, fileName)
+  return blob
 }

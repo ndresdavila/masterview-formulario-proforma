@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ToastContainer, cssTransition, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './custom-toast.css';
@@ -23,8 +23,8 @@ import {
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
-import { downloadLocalHbl, downloadLocalProforma } from './utils/localWord';
-import { buildHblData, hblFileName } from './utils/hbl';
+import { downloadLocalProforma } from './utils/localWord';
+import { sendToMasterview, sendsToMasterview, wakeMasterview } from './utils/masterview';
 
 const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
 const MAILBOX = "log@masterview.me";
@@ -89,6 +89,8 @@ function App() {
   // { phase: 'loading' | 'success', message, detail? } mientras se muestra el mensaje central.
   const [status, setStatus] = useState(null);
 
+  useEffect(() => { wakeMasterview(); }, []);
+
   const [rows, setRows] = useState([emptyCargoItem()]);
 
   const sums = useMemo(() => {
@@ -125,7 +127,7 @@ function App() {
     window.scrollTo({ top: 0 });
   };
 
-  // Lo que pasa a los Word (proforma, HBL y vista previa): cada campo sin espacios al inicio ni
+  // Lo que pasa a los Word (proforma, vista previa y lo que se envía a Masterview): cada campo sin espacios al inicio ni
   // al final, ni al final de cada línea.
   const cleanInput = () => ({
     form: cleanFields(formData),
@@ -254,31 +256,30 @@ function App() {
     setIsSubmitting(true);
 
     if (localWord) {
-      setStatus({ phase: 'loading', message: 'Generando proforma y HBL...' });
+      setStatus({ phase: 'loading', message: sendsToMasterview ? 'Generando y enviando proforma...' : 'Generando proforma...' });
+      let blob;
       try {
-        await downloadLocalProforma({ data: jsonPayload.data, fileName });
-        // El HBL sale de los mismos datos. Si falla, la proforma ya está descargada igual.
-        const hblName = hblFileName(formData.booking_number);
-        let hblError = null;
-        try {
-          const { form, cargo, marks, summary } = cleanInput();
-          await downloadLocalHbl({
-            data: buildHblData({ formData: form, rows: cargo, globalMarks: marks, cargoSummary: summary, sums }),
-            fileName: hblName,
-          });
-        } catch (err) {
-          console.error(err);
-          hblError = err;
-        }
-        setStatus({
-          phase: 'success',
-          message: hblError ? 'Proforma generada exitosamente' : 'Proforma y HBL generados exitosamente',
-          detail: hblError ? `Se descargó ${fileName}. No se pudo generar el HBL.` : `Se descargaron ${fileName} y ${hblName}`,
-        });
+        blob = await downloadLocalProforma({ data: jsonPayload.data, fileName });
       } catch (err) {
         console.error(err);
         setStatus(null);
         showStatus(err.message || "No se pudo generar la proforma", "error");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!sendsToMasterview) {
+        setStatus({ phase: 'success', message: 'Proforma generada exitosamente', detail: `Se descargó ${fileName}` });
+        setIsSubmitting(false);
+        return;
+      }
+      try {
+        const { form, cargo, marks, summary } = cleanInput();
+        await sendToMasterview({ id: crypto.randomUUID(), form, cargo, marks, summary, sums }, blob);
+        setStatus({ phase: 'success', message: 'Proforma enviada a Masterview', detail: `También se descargó ${fileName}` });
+      } catch (err) {
+        console.error(err);
+        setStatus(null);
+        showStatus(`Se descargó la proforma, pero no se pudo enviar a Masterview (${err.message}). Intente de nuevo.`, "error", true);
       }
       setIsSubmitting(false);
       return;
