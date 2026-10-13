@@ -14,6 +14,7 @@ import StatusOverlay from './components/StatusOverlay';
 import WordPreview from './components/WordPreview';
 import { formatAmount, formatWeight, parseAmount } from './utils/amount';
 import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
+import { packageUnit } from './utils/packageWords';
 import {
   cleanFields,
   cleanText,
@@ -172,6 +173,8 @@ function App() {
       cargo_summary: summary,
       total_containers: formattedRows.length,
       total_packages: sums.packages,
+      // "TOTAL BAGS", "TOTAL BOXES" o "TOTAL PACKAGES" si se mezclan tipos.
+      total_unit: packageUnit(cargo) ?? 'BAGS',
       total_net: sums.net,
       total_gross: sums.gross,
       total_cbm: sums.cbm,

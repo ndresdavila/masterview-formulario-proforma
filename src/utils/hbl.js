@@ -2,21 +2,10 @@ import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import { formatWeight, parseAmount } from './amount.js'
 import { containerMarks, sortByContainer, weightLines } from './proformaText.js'
+import { packageUnit } from './packageWords.js'
 
 // El tipo de contenedor (40HQ, 20DV...) no está en el formulario: queda para completarlo a mano.
 const CONTAINER_TYPE = '-----'
-
-const PACKAGE_WORD = /\d[\d.,]*\s+(bags?|sacks?|sacos?|cajas?|box(?:es)?|cartons?|packages?|pkgs?|bultos?|paquetes?|pallets?|bales?|drums?)\b/i
-
-// La palabra de la columna Nº of Pkgs ("1450 / BAGS") se toma de la primera descripción que la
-// tenga, tal como está escrita.
-function packageUnit(rows) {
-  for (const row of rows) {
-    const match = String(row.description || '').match(PACKAGE_WORD)
-    if (match) return match[1].toUpperCase()
-  }
-  return 'PACKAGES'
-}
 
 // La descripción de cada contenedor va tal cual se escribió (con su cantidad de bultos) y con los
 // pesos que la proforma agrega cuando no están escritos.
@@ -48,7 +37,7 @@ export function buildHblData({ formData, rows, globalMarks, cargoSummary, sums }
       ...(marks ? [`MARKS:\n${marks}`] : []),
     ].join('\n'),
     // Como en los HBL emitidos: "1450", sin separador de miles.
-    packages_block: [String(parseAmount(sums.packages) ?? ''), packageUnit(sorted)].filter(Boolean).join('\n'),
+    packages_block: [String(parseAmount(sums.packages) ?? ''), packageUnit(sorted) ?? 'PACKAGES'].filter(Boolean).join('\n'),
     // Solo la primera línea lleva la cantidad y el tipo de contenedores.
     description_block: [
       `${sorted.length}X${CONTAINER_TYPE} CONTAINERS STC`,
