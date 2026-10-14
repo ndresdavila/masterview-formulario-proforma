@@ -12,10 +12,15 @@ function maxAmount(text, pattern) {
   return values.length ? Math.max(...values) : null
 }
 
+// La unidad puede ir o no, también entre paréntesis: "NET WEIGHT (KG): 50,025.00".
+const UNIT = String.raw`(?:\(\s*kgs?\.?\s*\)|kgs?\.?)?`
+
 function labeledWeight(text, kind) {
-  const pattern = new RegExp(`(?:total\\s+)?${kind}\\s+weight\\s*:?\\s*([\\d.,]+)`, 'gi')
+  const pattern = new RegExp(String.raw`(?:total\s+)?${kind}\s+weight\s*${UNIT}\s*:?\s*([\d.,]+)`, 'gi')
   return maxAmount(text, pattern)
 }
+
+const spanishWeight = (word) => new RegExp(String.raw`peso\s+${word}(?:\s+total)?\s*${UNIT}\s*:?\s*([\d.,]+)`, 'i')
 
 export function readSummaryFigures(text) {
   const raw = String(text || '')
@@ -25,11 +30,11 @@ export function readSummaryFigures(text) {
     ?? maxAmount(raw, /([\d.,]+)\s*(?:bags?|cajas?|box(?:es)?|packages?|bultos?|paquetes?)\b/gi)
 
   const net = labeledWeight(raw, 'net')
-    ?? firstAmount(raw, /peso\s+neto(?:\s+total)?\s*:?\s*([\d.,]+)/i)
+    ?? firstAmount(raw, spanishWeight('neto'))
     ?? maxAmount(raw, /([\d.,]+)\s*KN\b/gi)
 
   const gross = labeledWeight(raw, 'gross')
-    ?? firstAmount(raw, /peso\s+bruto(?:\s+total)?\s*:?\s*([\d.,]+)/i)
+    ?? firstAmount(raw, spanishWeight('bruto'))
     ?? maxAmount(raw, /([\d.,]+)\s*KB\b/gi)
 
   return { packages, net, gross }

@@ -56,8 +56,8 @@ export function weightLines(row) {
   const net = formatWeight(row.netWeight)
   const gross = formatWeight(row.grossWeight)
   const lines = []
-  if (net && written.netWeight == null) lines.push(`NET WEIGHT: ${net}`)
-  if (gross && written.grossWeight == null) lines.push(`GROSS WEIGHT: ${gross}`)
+  if (net && written.netWeight == null) lines.push(`NET WEIGHT: ${net} KG`)
+  if (gross && written.grossWeight == null) lines.push(`GROSS WEIGHT: ${gross} KG`)
   return lines
 }
 
