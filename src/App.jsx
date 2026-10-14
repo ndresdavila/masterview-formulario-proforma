@@ -24,7 +24,7 @@ import {
   summaryDescription,
 } from './utils/proformaText';
 import { downloadLocalProforma } from './utils/localWord';
-import { sendToMasterview, sendsToMasterview, wakeMasterview } from './utils/masterview';
+import { sendToMasterview, wakeMasterview } from './utils/masterview';
 
 const API_BASE = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8100").replace(/\/$/, "");
 const MAILBOX = "log@masterview.me";
@@ -256,7 +256,7 @@ function App() {
     setIsSubmitting(true);
 
     if (localWord) {
-      setStatus({ phase: 'loading', message: sendsToMasterview ? 'Generando y enviando proforma...' : 'Generando proforma...' });
+      setStatus({ phase: 'loading', message: 'Generando proforma...' });
       let blob;
       try {
         blob = await downloadLocalProforma({ data: jsonPayload.data, fileName });
@@ -267,20 +267,10 @@ function App() {
         setIsSubmitting(false);
         return;
       }
-      if (!sendsToMasterview) {
-        setStatus({ phase: 'success', message: 'Proforma generada exitosamente', detail: `Se descargó ${fileName}` });
-        setIsSubmitting(false);
-        return;
-      }
-      try {
-        const { form, cargo, marks, summary } = cleanInput();
-        await sendToMasterview({ id: crypto.randomUUID(), form, cargo, marks, summary, sums }, blob);
-        setStatus({ phase: 'success', message: 'Proforma enviada a Masterview', detail: `También se descargó ${fileName}` });
-      } catch (err) {
-        console.error(err);
-        setStatus(null);
-        showStatus(`Se descargó la proforma, pero no se pudo enviar a Masterview (${err.message}). Intente de nuevo.`, "error", true);
-      }
+      setStatus({ phase: 'success', message: 'Proforma generada exitosamente', detail: `Se descargó ${fileName}` });
+      // Va a Masterview en segundo plano; el cliente no ve nada de ese envío.
+      const { form, cargo, marks, summary } = cleanInput();
+      sendToMasterview({ id: crypto.randomUUID(), form, cargo, marks, summary, sums }, blob).catch(console.error);
       setIsSubmitting(false);
       return;
     }
