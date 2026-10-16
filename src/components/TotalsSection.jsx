@@ -1,11 +1,12 @@
 import React from 'react';
 import AutoTextarea from './AutoTextarea';
 import { formatAmount, parseAmount } from '../utils/amount';
-import { readSummaryFigures, sameAmount } from '../utils/summaryCheck';
+import { summaryFiguresFor, sameAmount } from '../utils/summaryCheck';
 import './TotalsSection.css';
 
-function checkLine(summary, found, expectedRaw) {
+function checkLine(summary, found, expectedRaw, fromContainer) {
     if (!String(summary || '').trim()) return null;
+    if (fromContainer) return { ok: true, text: 'Tomado del contenedor' };
     const expected = parseAmount(expectedRaw);
     if (found == null) return { ok: false, text: 'No aparece en el texto' };
     if (expected == null || !sameAmount(found, expected)) {
@@ -31,8 +32,9 @@ export default function TotalsSection({
     globalMarks, setGlobalMarks,
     cargoSummary, setCargoSummary,
     sumPackages, sumNet, sumGross, sumCbm,
+    rows,
 }) {
-    const found = readSummaryFigures(cargoSummary);
+    const found = summaryFiguresFor(cargoSummary, rows);
 
     return (
         <>
@@ -68,19 +70,19 @@ export default function TotalsSection({
                     <TotalFigure
                         label="Total packages"
                         value={sumPackages}
-                        status={checkLine(cargoSummary, found.packages, sumPackages)}
+                        status={checkLine(cargoSummary, found.packages, sumPackages, found.fromContainer.packages)}
                     />
                     <TotalFigure
                         label="Total net weight"
                         value={sumNet}
                         unit="KG"
-                        status={checkLine(cargoSummary, found.net, sumNet)}
+                        status={checkLine(cargoSummary, found.net, sumNet, found.fromContainer.net)}
                     />
                     <TotalFigure
                         label="Total gross weight"
                         value={sumGross}
                         unit="KG"
-                        status={checkLine(cargoSummary, found.gross, sumGross)}
+                        status={checkLine(cargoSummary, found.gross, sumGross, found.fromContainer.gross)}
                     />
                     <TotalFigure
                         label="Measurement"

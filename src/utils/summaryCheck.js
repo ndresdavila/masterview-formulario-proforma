@@ -44,3 +44,24 @@ export function sameAmount(found, expected) {
   if (found == null || expected == null) return false
   return Math.abs(found - expected) < 0.02
 }
+
+// Con un solo contenedor el resumen no tiene que repetir los totales: lo que no
+// aparezca en el texto se toma de ese contenedor.
+export function summaryFiguresFor(text, rows) {
+  const found = readSummaryFigures(text)
+  if (rows.length !== 1) return { ...found, fromContainer: {} }
+  const [only] = rows
+  const fromContainer = {}
+  const fill = (key, value) => {
+    if (found[key] != null) return found[key]
+    const n = parseAmount(value)
+    if (n != null) fromContainer[key] = true
+    return n
+  }
+  return {
+    packages: fill('packages', only.packages),
+    net: fill('net', only.netWeight),
+    gross: fill('gross', only.grossWeight),
+    fromContainer,
+  }
+}

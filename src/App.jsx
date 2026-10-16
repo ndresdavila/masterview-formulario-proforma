@@ -13,7 +13,7 @@ import TotalsSection from './components/TotalsSection';
 import StatusOverlay from './components/StatusOverlay';
 import WordPreview from './components/WordPreview';
 import { formatAmount, formatWeight, parseAmount } from './utils/amount';
-import { readSummaryFigures, sameAmount } from './utils/summaryCheck';
+import { summaryFiguresFor, sameAmount } from './utils/summaryCheck';
 import {
   cleanFields,
   cleanText,
@@ -212,7 +212,7 @@ function App() {
 
     if (!cargoSummary.trim()) return toast.error('La descripción del resumen es requerida.');
 
-    const found = readSummaryFigures(cargoSummary);
+    const found = summaryFiguresFor(cargoSummary, rows);
     const expectedNet = sums.net ? parseAmount(sums.net) : null;
     const expectedGross = sums.gross ? parseAmount(sums.gross) : null;
     const checks = [
@@ -345,6 +345,7 @@ function App() {
             sumNet={sums.net}
             sumGross={sums.gross}
             sumCbm={sums.cbm}
+            rows={rows}
           />
 
           <div className="d-grid gap-2 d-md-flex justify-content-md-start mt-4 mb-4">
