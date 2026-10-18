@@ -15,13 +15,33 @@ function paraId() {
 
 const SOFT_RULE = { val: 'dotted', sz: '6', color: 'A6A6A6' }
 
+// Líneas de totales de la descripción ("TOTAL BAGS: 725", "TOTAL NET WEIGHT (KG): 100,050.00",
+// "PESO BRUTO TOTAL: 4.118,40 KG"): la cifra va tras una tabulación para que todas queden alineadas.
+const KG = String.raw`(?:\s*\(?\s*kgs?\.?\s*\)?)?`
+const TOTAL_LABEL = [
+  String.raw`total\s+(?:bags?|sacks?|sacos?|cajas?|box(?:es)?|cartons?|packages?|pkgs?|bultos?|paquetes?)`,
+  String.raw`total\s+(?:net|gross)\s+(?:weight|wt\.?)${KG}`,
+  String.raw`peso\s+(?:neto|bruto)\s+total${KG}`,
+  String.raw`total\s+peso\s+(?:neto|bruto)${KG}`,
+].join('|')
+const TOTAL_LINE = new RegExp(String.raw`^((?:${TOTAL_LABEL})\s*:?)[ \t\xA0]*(?=\d)`, 'i')
+// Marca de la tabulación hasta después de rellenar la plantilla (carácter de uso privado).
+const TOTAL_TAB = ''
+
+export function markTotals(text) {
+  return String(text ?? '')
+    .split('\n')
+    .map((line) => line.replace(TOTAL_LINE, (_, label) => `${label.trimEnd()}${TOTAL_TAB}`))
+    .join('\n')
+}
+
 export function prepareRows(rows) {
   return (rows || []).map((row) => {
     const marks = [row.marks_numbers, row.container_numbers].filter(Boolean).join('\n')
     return {
       ...row,
       marks_block: row.marks_block || marks,
-      description_block: row.description_block ?? row.description ?? '',
+      description_block: markTotals(row.description_block ?? row.description ?? ''),
       packages: row.packages ?? '',
       gross_weight: row.gross_weight ?? '',
       measurements: row.measurements ?? '',
@@ -246,6 +266,7 @@ function textEm(text, bold) {
   for (const ch of String(text)) {
     if (/[0-9]/.test(ch)) width += 556
     else if (/[A-Z]/.test(ch)) width += bold ? (BOLD_CAPS[ch] || 722) : 667
+    else if (/[a-z]/.test(ch)) width += 556
     else if (ch === ':') width += 333
     else width += 278
   }
@@ -547,6 +568,25 @@ function valueSizes(xml) {
   })
 }
 
+// Cada párrafo con líneas de totales lleva una parada justo después de la etiqueta más larga
+// (más un margen); las líneas van separadas con <w:br/>, así que la parada sirve para todas.
+const TOTAL_TAB_GAP = 120
+
+function alignTotals(xml) {
+  return xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, (paragraph) => {
+    if (!paragraph.includes(TOTAL_TAB)) return paragraph
+    const labels = paragraph.split('<w:br/>')
+      .map((line) => line.replace(/<[^>]+>/g, ''))
+      .filter((line) => line.includes(TOTAL_TAB))
+      .map((line) => line.slice(0, line.indexOf(TOTAL_TAB)))
+    // textEm en em; VALUE_SIZE en medios puntos y 20 twips por punto.
+    const widest = Math.max(...labels.map((label) => textEm(label, false))) * (VALUE_SIZE / 2) * 20
+    const tabs = `<w:tabs><w:tab w:val="left" w:pos="${Math.ceil(widest + TOTAL_TAB_GAP)}"/></w:tabs>`
+    const split = paragraph.split(TOTAL_TAB).join('</w:t><w:tab/><w:t xml:space="preserve">')
+    return withTabStop(split, tabs)
+  })
+}
+
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize)
   if (value && typeof value === 'object') {
@@ -582,7 +622,7 @@ export function fillTemplate(buffer, data) {
   const renderedXml = rendered.file('word/document.xml')
   if (renderedXml) {
     const withTotals = appendTotalsRow(renderedXml.asText(), payload)
-    rendered.file('word/document.xml', softenCargoDividers(withTotals))
+    rendered.file('word/document.xml', alignTotals(softenCargoDividers(withTotals)))
   }
   return rendered.generate({
     type: 'uint8array',
