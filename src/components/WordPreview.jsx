@@ -130,6 +130,10 @@ function alignTabs(wrapper, tabStops) {
     tab.textContent = '';
     tab.style.display = 'inline-block';
     tab.style.width = `${Math.max(width, 0)}px`;
+    // Sin alto: el span lleva la letra por defecto (11 pt) y un min-height de esa letra; vacío,
+    // alargaría su línea.
+    tab.style.height = '0';
+    tab.style.minHeight = '0';
   });
 }
 
