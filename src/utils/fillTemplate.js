@@ -45,11 +45,7 @@ function appendParagraph(cellXml, tag) {
   const end = cellXml.lastIndexOf('</w:p>')
   if (end < 0) return fillEmptyParagraph(cellXml, tag)
   const pPr = (cellXml.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0]
-  let rPr = (pPr.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0]
-  rPr = rPr
-    .replace(/<w:color[^/]*\/>/g, '')
-    .replace(/<w:sz w:val="\d+"\/>/, '<w:sz w:val="20"/>')
-    .replace(/<w:szCs w:val="\d+"\/>/, '<w:szCs w:val="20"/>')
+  const rPr = (pPr.match(/<w:rPr>[\s\S]*?<\/w:rPr>/) || [''])[0].replace(/<w:color[^/]*\/>/g, '')
   const paragraph = `<w:p w14:paraId="${paraId()}" w14:textId="77777777">${pPr}${runXml(rPr, tag)}</w:p>`
   return cellXml.slice(0, end + '</w:p>'.length) + paragraph + cellXml.slice(end + '</w:p>'.length)
 }
@@ -307,7 +303,7 @@ function appendTotalsRow(xml, data) {
     ['TOTAL BAGS', data.total_packages],
     ['TOTAL NET WEIGHT', withUnit(data.total_net, 'KG')],
     ['TOTAL GROSS WEIGHT', withUnit(data.total_gross, 'KG')],
-    ['TOTAL MEASUREMENT', withUnit(data.total_cbm, 'CBM')],
+    ['CBM', data.total_cbm],
   ]
   const table = totalsTable(width, items)
   const row = `<w:tr><w:trPr><w:cantSplit/></w:trPr><w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:gridSpan w:val="${span}"/>${`<w:tcBorders>${borderTag('top')}</w:tcBorders>`}<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${table}<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p></w:tc></w:tr>`
@@ -530,6 +526,27 @@ function placeFields(xml) {
   return out
 }
 
+// Mismo tamaño de letra que la plantilla del HBL (medios puntos): partes y carga a 8 pt; booking,
+// buque/viaje y puertos a 8,5 pt.
+const VALUE_SIZE = 16
+const VALUE_SIZES = { booking_number: 17, vessel_name: 17, voy_number: 17, port_of_loading: 17, port_of_discharge: 17 }
+
+function withSize(rPr, size) {
+  const sz = `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>`
+  const clean = rPr.replace(/<w:sz w:val="\d+"\/>|<w:szCs w:val="\d+"\/>/g, '')
+  return clean.replace('</w:rPr>', `${sz}</w:rPr>`)
+}
+
+function valueSizes(xml) {
+  return xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>)[\s\S])*?\[\[[\s\S]*?<\/w:p>/g, (paragraph) => {
+    const name = [...paragraph.matchAll(/\[\[([#/]?)(\w+)\]\]/g)].find((m) => !m[1])?.[2]
+    const size = VALUE_SIZES[name] ?? VALUE_SIZE
+    return paragraph
+      .replace(/<w:rPr>[\s\S]*?<\/w:rPr>/g, (rPr) => withSize(rPr, size))
+      .replace(/<w:r>(?!<w:rPr>)/g, `<w:r>${withSize('<w:rPr></w:rPr>', size)}`)
+  })
+}
+
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize)
   if (value && typeof value === 'object') {
@@ -544,7 +561,7 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', pageMargins(separateContact(liftLogo(placeFields(widenGrossWeight(file.asText()))))))
+  zip.file('word/document.xml', pageMargins(separateContact(liftLogo(valueSizes(placeFields(widenGrossWeight(file.asText())))))))
 
   const payload = normalize({
     ...data,
