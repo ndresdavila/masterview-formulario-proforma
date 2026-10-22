@@ -260,14 +260,15 @@ function shareWidths(total, weights) {
 
 // Ancho aproximado de Arial en milésimas de em, para saber si los totales caben en una línea.
 const BOLD_CAPS = { I: 278, J: 556, L: 611, T: 611, F: 611, Z: 611, E: 667, P: 667, S: 667, V: 667, X: 667, Y: 667, K: 722, A: 722, B: 722, C: 722, D: 722, H: 722, N: 722, R: 722, U: 722, G: 778, O: 778, Q: 778, M: 833, W: 944 }
+const REGULAR_CAPS = { I: 278, J: 500, L: 556, F: 611, T: 611, Z: 611, A: 667, B: 667, E: 667, K: 667, P: 667, S: 667, V: 667, X: 667, Y: 667, C: 722, D: 722, H: 722, N: 722, R: 722, U: 722, G: 778, O: 778, Q: 778, M: 833, W: 944 }
 
 function textEm(text, bold) {
   let width = 0
   for (const ch of String(text)) {
     if (/[0-9]/.test(ch)) width += 556
-    else if (/[A-Z]/.test(ch)) width += bold ? (BOLD_CAPS[ch] || 722) : 667
+    else if (/[A-Z]/.test(ch)) width += bold ? (BOLD_CAPS[ch] || 722) : (REGULAR_CAPS[ch] || 667)
     else if (/[a-z]/.test(ch)) width += 556
-    else if (ch === ':') width += 333
+    else if (ch === ':' || ch === '-' || ch === '(' || ch === ')') width += 333
     else width += 278
   }
   return width / 1000
@@ -568,6 +569,29 @@ function valueSizes(xml) {
   })
 }
 
+// El viaje va en una tabulación al borde derecho de la celda de VESSEL. Si el nombre del buque
+// no cabe antes del viaje ("POSORJA EXPRESS - ECUADOR"), Word pasa el viaje a la línea de abajo:
+// solo la letra del buque baja hasta que todo quede en una línea.
+const VESSEL_GAP = 120
+const VESSEL_MIN_SIZE = 8
+
+function fitVessel(xml, vessel, voyage) {
+  const at = xml.indexOf('[[vessel_name]]')
+  if (at < 0 || !vessel) return xml
+  const head = xml.slice(xml.lastIndexOf('<w:p ', at), at)
+  const tab = Number((head.match(/<w:tab w:val="right" w:pos="(\d+)"\/>/) || [])[1] || 0)
+  const runStart = xml.lastIndexOf('<w:r>', at)
+  const run = xml.slice(runStart, at)
+  const size = Number((run.match(/<w:sz w:val="(\d+)"\/>/) || [])[1] || 0)
+  // textEm en em; el tamaño en medios puntos y 20 twips por punto.
+  const twips = (text) => textEm(text, false) * (size / 2) * 20
+  const room = tab - (voyage ? twips(voyage) + VESSEL_GAP : 0)
+  const wide = twips(vessel)
+  if (!tab || !size || wide <= room) return xml
+  const fit = Math.max(VESSEL_MIN_SIZE, Math.floor((size * room) / wide))
+  return xml.slice(0, runStart) + withSize(run, fit) + xml.slice(at)
+}
+
 // Cada párrafo con líneas de totales lleva una parada justo después de la etiqueta más larga
 // (más un margen); las líneas van separadas con <w:br/>, así que la parada sirve para todas.
 const TOTAL_TAB_GAP = 120
@@ -601,7 +625,10 @@ export function fillTemplate(buffer, data) {
   const zip = new PizZip(buffer)
   const file = zip.file('word/document.xml')
   if (!file) throw new Error('La plantilla no tiene document.xml')
-  zip.file('word/document.xml', pageMargins(separateContact(liftLogo(valueSizes(placeFields(widenGrossWeight(file.asText())))))))
+  const vessel = String(data.vessel_name ?? data.vessel ?? '').trim()
+  const voyage = String(data.voy_number || '').trim()
+  const prepared = valueSizes(placeFields(widenGrossWeight(file.asText())))
+  zip.file('word/document.xml', pageMargins(separateContact(liftLogo(fitVessel(prepared, vessel, voyage)))))
 
   const payload = normalize({
     ...data,
