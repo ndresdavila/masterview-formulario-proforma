@@ -15,8 +15,12 @@ function maxAmount(text, pattern) {
 // La unidad puede ir o no, también entre paréntesis: "NET WEIGHT (KG): 50,025.00".
 const UNIT = String.raw`(?:\(\s*kgs?\.?\s*\)|kgs?\.?)?`
 
+// También abreviada: "NW: 100050.00 KGS", "N.W. 25,047.00", "GW: 100775.00".
+const ABBREVIATION = { net: String.raw`n\.?\s?w\.?`, gross: String.raw`g\.?\s?w\.?` }
+
 function labeledWeight(text, kind) {
-  const pattern = new RegExp(String.raw`(?:total\s+)?${kind}\s+weight\s*${UNIT}\s*:?\s*([\d.,]+)`, 'gi')
+  const label = String.raw`(?:(?:total\s+)?${kind}\s+weight|\b${ABBREVIATION[kind]}(?![a-z]))`
+  const pattern = new RegExp(String.raw`${label}\s*${UNIT}\s*:?\s*([\d.,]+)`, 'gi')
   return maxAmount(text, pattern)
 }
 

@@ -7,7 +7,7 @@ const END = '(?![a-z])'
 
 // Cifra antes de la etiqueta, en la misma línea: "25,047.00 NW", "21,600 KGS NET", "58 CBM".
 const after = (label) => new RegExp(`${NUM}[ \\t]*${KG_INLINE}(?:${label})${END}`, 'gi')
-// Etiqueta antes de la cifra: "NET WEIGHT: 25,047.00 KG", "PESO BRUTO (KG): 4.118,40".
+// Etiqueta antes de la cifra: "NET WEIGHT: 25,047.00 KG", "PESO BRUTO (KG): 4.118,40", "NW: 100050.00 KGS".
 const before = (label) => new RegExp(`(?:${label})${END}\\s*(?:total)?\\s*${UNIT}:?\\s*${UNIT}${NUM}`, 'gi')
 
 const PACKAGES = after('bags?|sacks?|sacos?|cajas?|box(?:es)?|cartons?|packages?|pkgs?|bultos?|paquetes?|pallets?|bales?|drums?')
@@ -15,11 +15,11 @@ const PACKAGES = after('bags?|sacks?|sacos?|cajas?|box(?:es)?|cartons?|packages?
 const FIELDS = {
   netWeight: {
     after: after('n\\.?\\s?w\\.?|kn|net|neto'),
-    before: before('net\\s*(?:weight|wt\\.?)|peso\\s+neto|n\\.\\s?w\\.'),
+    before: before('net\\s*(?:weight|wt\\.?)|peso\\s+neto|\\bn\\.?\\s?w\\.?'),
   },
   grossWeight: {
     after: after('g\\.?\\s?w\\.?|kb|gross|bruto'),
-    before: before('gross\\s*(?:weight|wt\\.?)|peso\\s+bruto|g\\.\\s?w\\.'),
+    before: before('gross\\s*(?:weight|wt\\.?)|peso\\s+bruto|\\bg\\.?\\s?w\\.?'),
   },
   measurements: {
     after: after('cbm|m3|m³|cu\\.?\\s?m'),
