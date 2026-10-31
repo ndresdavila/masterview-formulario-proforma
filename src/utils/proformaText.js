@@ -45,13 +45,23 @@ export function containerMarks(row) {
   return lines.join('\n')
 }
 
-export function containerDescription(row) {
+export function containerDescription(row, options) {
   const description = withoutPackageCount(String(row.description || '').trim(), row.packages)
-  return [description, ...weightLines(row)].filter(Boolean).join('\n')
+  return [description, ...weightLines(row, options)].filter(Boolean).join('\n')
+}
+
+// AGROSYLMA manda un solo contenedor desglosado en varios productos, cada uno con su peso: ahí no
+// va debajo el NET WEIGHT / GROSS WEIGHT total del contenedor.
+const AGROSYLMA = /agrosylma|agro\s+sylvia\s+maria/i
+
+export function weightTotalsWanted(shipper, rows) {
+  if (!AGROSYLMA.test(String(shipper || '')) || rows.length !== 1) return true
+  return [...String(rows[0].description || '').matchAll(PACKAGE_COUNT)].length < 2
 }
 
 // Los pesos que ya vienen escritos en la descripción no se repiten debajo.
-export function weightLines(row) {
+export function weightLines(row, { totals = true } = {}) {
+  if (!totals) return []
   const written = readCargoFigures(row.description)
   const net = formatWeight(row.netWeight)
   const gross = formatWeight(row.grossWeight)

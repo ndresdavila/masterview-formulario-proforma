@@ -20,6 +20,7 @@ import {
   containerMarks,
   containerDescription,
   sortByContainer,
+  weightTotalsWanted,
   vesselLine,
   summaryDescription,
 } from './utils/proformaText';
@@ -139,9 +140,10 @@ function App() {
   // Datos del Word: los mismos para la descarga, el correo y la vista previa.
   const buildDocData = () => {
     const { form, cargo, marks, summary } = cleanInput();
+    const totals = weightTotalsWanted(form.shipper, cargo);
     const formattedRows = sortByContainer(cargo).map((r) => ({
       marks_numbers: containerMarks(r),
-      description: containerDescription(r),
+      description: containerDescription(r, { totals }),
       packages: r.packages,
       gross_weight: formatWeight(r.grossWeight),
       net_weight: formatWeight(r.netWeight),
