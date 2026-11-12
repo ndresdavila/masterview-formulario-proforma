@@ -322,7 +322,7 @@ function appendTotalsRow(xml, data) {
   if (!width || !span) return xml
   const items = [
     ['TOTAL CONTAINERS', data.total_containers],
-    ['TOTAL BAGS', data.total_packages],
+    ['TOTAL PKGS', data.total_packages],
     ['TOTAL NET WEIGHT', withUnit(data.total_net, 'KG')],
     ['TOTAL GROSS WEIGHT', withUnit(data.total_gross, 'KG')],
     ['CBM', data.total_cbm],

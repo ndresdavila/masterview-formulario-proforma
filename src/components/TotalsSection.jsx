@@ -1,16 +1,16 @@
 import React from 'react';
 import AutoTextarea from './AutoTextarea';
-import { formatAmount, parseAmount } from '../utils/amount';
+import { formatAmount, formatPackages, parseAmount } from '../utils/amount';
 import { summaryFiguresFor, sameAmount } from '../utils/summaryCheck';
 import './TotalsSection.css';
 
-function checkLine(summary, found, expectedRaw, fromContainer) {
+function checkLine(summary, found, expectedRaw, fromContainer, format = formatAmount) {
     if (!String(summary || '').trim()) return null;
     if (fromContainer) return { ok: true, text: 'Tomado del contenedor' };
     const expected = parseAmount(expectedRaw);
     if (found == null) return { ok: false, text: 'No aparece en el texto' };
     if (expected == null || !sameAmount(found, expected)) {
-        return { ok: false, text: `En el texto: ${formatAmount(found)}` };
+        return { ok: false, text: `En el texto: ${format(found)}` };
     }
     return { ok: true, text: 'Coincide' };
 }
@@ -70,7 +70,7 @@ export default function TotalsSection({
                     <TotalFigure
                         label="Total packages"
                         value={sumPackages}
-                        status={checkLine(cargoSummary, found.packages, sumPackages, found.fromContainer.packages)}
+                        status={checkLine(cargoSummary, found.packages, sumPackages, found.fromContainer.packages, formatPackages)}
                     />
                     <TotalFigure
                         label="Total net weight"

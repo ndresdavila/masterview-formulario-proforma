@@ -12,7 +12,7 @@ import DynamicRows from './components/DynamicRows';
 import TotalsSection from './components/TotalsSection';
 import StatusOverlay from './components/StatusOverlay';
 import WordPreview from './components/WordPreview';
-import { formatAmount, formatWeight, parseAmount } from './utils/amount';
+import { formatAmount, formatPackages, formatWeight, parseAmount } from './utils/amount';
 import { summaryFiguresFor, sameAmount } from './utils/summaryCheck';
 import {
   cleanFields,
@@ -98,7 +98,7 @@ function App() {
     const add = (field) => rows.reduce((acc, row) => acc + (parseAmount(row[field]) || 0), 0);
     const any = (field) => rows.some((row) => parseAmount(row[field]) != null);
     return {
-      packages: formatAmount(add('packages')),
+      packages: formatPackages(add('packages')),
       net: any('netWeight') ? formatWeight(add('netWeight')) : '',
       gross: any('grossWeight') ? formatWeight(add('grossWeight')) : '',
       cbm: any('measurements') ? formatAmount(add('measurements')) : '',
@@ -144,7 +144,7 @@ function App() {
     const formattedRows = sortByContainer(cargo).map((r) => ({
       marks_numbers: containerMarks(r),
       description: containerDescription(r, { totals }),
-      packages: r.packages,
+      packages: formatPackages(r.packages),
       gross_weight: formatWeight(r.grossWeight),
       net_weight: formatWeight(r.netWeight),
       measurements: r.measurements,
@@ -225,7 +225,8 @@ function App() {
     for (const [label, written, expected, shown] of checks) {
       if (written == null) return toast.error(`No se encontró el total de ${label} en el resumen.`);
       if (!sameAmount(written, expected)) {
-        return toast.error(`El total de ${label} del resumen (${formatAmount(written)}) no coincide con los contenedores (${shown || '—'}).`);
+        const writtenText = label === 'packages' ? formatPackages(written) : formatAmount(written);
+        return toast.error(`El total de ${label} del resumen (${writtenText}) no coincide con los contenedores (${shown || '—'}).`);
       }
     }
 

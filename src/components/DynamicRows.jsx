@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import AutoTextarea from './AutoTextarea';
 import { cargoFieldsFromDescription } from '../utils/cargoFigures';
+import { formatPackages } from '../utils/amount';
 import './DynamicRows.css';
 
 export default function DynamicRows({ rows, setRows, addRow }) {
@@ -109,6 +110,10 @@ export default function DynamicRows({ rows, setRows, addRow }) {
                 placeholder="0"
                 value={row.packages}
                 onChange={(e) => handleNumericChange(e, index, 'packages')}
+                onBlur={() => {
+                  const next = formatPackages(row.packages);
+                  if (next !== row.packages) updateField(index, 'packages', next);
+                }}
               />
             </div>
             <div>

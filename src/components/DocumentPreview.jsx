@@ -2,7 +2,7 @@ import React from 'react';
 import './DocumentPreview.css';
 import logoImg from '../assets/logo.png';
 import { summaryDescription, weightLines, weightTotalsWanted } from '../utils/proformaText';
-import { formatWeight } from '../utils/amount';
+import { formatPackages, formatWeight } from '../utils/amount';
 
 const DocumentPreview = ({ data }) => {
     const containerRef = React.useRef(null);
@@ -196,7 +196,7 @@ const DocumentPreview = ({ data }) => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="bl-col bl-pkgs-content">{row.packages}</div>
+                                <div className="bl-col bl-pkgs-content">{formatPackages(row.packages)}</div>
                                 <div className="bl-col bl-desc-content" style={{ whiteSpace: 'pre-wrap' }}>
                                     {row.description}
                                     {weightLines(row, { totals: weightTotalsWanted(shipper, rows) }).map((line) => `\n${line}`).join('')}

@@ -43,6 +43,14 @@ export function formatAmount(n) {
   })
 }
 
+// Bultos sin separador de miles: 2.000 y 2,000 quedan 2000. Lo que no se puede leer se deja igual.
+export function formatPackages(raw) {
+  const n = typeof raw === 'number' ? raw : parseAmount(raw)
+  if (n == null || !Number.isFinite(n)) return String(raw ?? '').trim()
+  if (Number.isInteger(n)) return String(n)
+  return n.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })
+}
+
 // Los pesos siempre van con dos decimales: 24978 → 24,978.00. Lo que no se puede leer se deja igual.
 export function formatWeight(raw) {
   const n = typeof raw === 'number' ? raw : parseAmount(raw)

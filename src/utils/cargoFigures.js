@@ -1,4 +1,4 @@
-import { formatAmount, formatWeight, parseAmount } from './amount.js'
+import { formatAmount, formatPackages, formatWeight, parseAmount } from './amount.js'
 
 const NUM = '(\\d[\\d.,]*\\d|\\d)'
 const UNIT = '(?:\\(?\\s*(?:kgs?|cbm|m3|m³)\\.?\\s*\\)?\\s*)?'
@@ -78,7 +78,7 @@ export function cargoFieldsFromDescription(text) {
   const figures = readCargoFigures(text)
   const show = (n, format) => (n == null ? '' : format(n))
   return {
-    packages: show(figures.packages, formatAmount),
+    packages: show(figures.packages, formatPackages),
     netWeight: show(figures.netWeight, formatWeight),
     grossWeight: show(figures.grossWeight, formatWeight),
     measurements: show(figures.measurements, formatAmount),
